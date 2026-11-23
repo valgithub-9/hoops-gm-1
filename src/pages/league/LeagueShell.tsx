@@ -49,7 +49,7 @@ export function LeagueShell({ title, children }: { title: string; children: Reac
   useEffect(() => {
     if (!toast) return;
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setToast(null), 4000);
+    timer.current = window.setTimeout(() => setToast(null), toast.tone === "success" ? 4000 : 9000);
     return () => window.clearTimeout(timer.current);
   }, [toast]);
 
@@ -69,9 +69,11 @@ export function LeagueShell({ title, children }: { title: string; children: Reac
   const onAdvance = (until: AdvanceOption) => run(async () => {
     const r = await sim.advance(league.id, until, (p) =>
       setProgress(league.phase === "playoffs" ? `季後賽第 ${p.day - lastDay} 天` : `第 ${p.day} / ${p.lastDay} 天`));
-    setToast(r.phaseOver
-      ? { tone: "success", title: league.phase === "playoffs" ? "季後賽結束" : "例行賽結束", body: league.phase === "playoffs" ? "看看總冠軍和年度獎項，然後前往選秀。" : "可以開始季後賽了。" }
-      : { tone: "success", title: `推進了 ${r.daysPlayed} 天`, body: `模擬 ${r.gamesPlayed} 場比賽，用時 ${(r.ms / 1000).toFixed(1)} 秒。` });
+    setToast(r.paused
+      ? { tone: "warning", title: r.paused.reason === "deadline" ? "交易截止日" : "推進已暫停", body: r.paused.message }
+      : r.phaseOver
+        ? { tone: "success", title: league.phase === "playoffs" ? "季後賽結束" : "例行賽結束", body: league.phase === "playoffs" ? "看看總冠軍和年度獎項，然後前往選秀。" : "可以開始季後賽了。" }
+        : { tone: "success", title: `推進了 ${r.daysPlayed} 天`, body: `模擬 ${r.gamesPlayed} 場比賽，用時 ${(r.ms / 1000).toFixed(1)} 秒。` });
   });
 
   const step = (to: string, toast: ToastState) => run(async () => {
@@ -89,8 +91,15 @@ export function LeagueShell({ title, children }: { title: string; children: Reac
     action = <Button variant="secondary" onClick={() => navigate(`/l/${league.id}/free-agents`)} title={problems[0]}>
       <UserPlus className="size-4" aria-hidden />補齊名單</Button>;
   } else if (league.phase === "regular" && !phaseDone) {
+    const beforeDeadline = league.day < league.settings.tradeDeadlineDay;
     action = <AdvanceMenu busy={busy} progress={progress} onAdvance={onAdvance} onCancel={() => sim.cancel()}
-      blockedReason={problems[0]} inHeader />;
+      blockedReason={problems[0]} inHeader
+      options={[
+        { id: "day", label: "推進一天" },
+        { id: "week", label: "推進一週" },
+        ...(beforeDeadline ? [{ id: "deadline" as const, label: `到交易截止日（第 ${league.settings.tradeDeadlineDay + 1} 天）` }] : []),
+        { id: "phaseEnd", label: "到例行賽結束" },
+      ]} />;
   } else if (league.phase === "regular") {
     action = <Button loading={busy} onClick={() => step("playoffs", { tone: "success", title: "季後賽開打" })}>
       <SkipForward className="size-4" aria-hidden />開始季後賽</Button>;

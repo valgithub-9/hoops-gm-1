@@ -20,6 +20,7 @@ function Roster() {
         <span className="flex items-center gap-2">
           <Link to={`/l/${league.id}/player/${r.player.id}`} className="font-medium max-w-[180px] truncate hover:text-accent-text">{r.player.firstName} {r.player.lastName}</Link>
           {r.starter && <Badge tone="accent">先發</Badge>}
+          {r.player.injury && <Badge tone="danger">{r.player.injury.type} · 缺 {r.player.injury.gamesRemaining} 場</Badge>}
         </span>
       ) },
     { key: "pos", header: "位置", cell: (r) => r.player.position, sortValue: (r) => "PG SG SF PF C".indexOf(r.player.position) },

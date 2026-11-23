@@ -65,7 +65,9 @@ describe("trade rules", () => {
   it("closes trades after the deadline", () => {
     const partner = roomiest();
     const offer: TradeOffer = { partnerId: partner.id, give: [P(rosterOf(ctx.league.userTeamId)[0].id)], get: [] };
-    const late = { ...ctx, league: { ...ctx.league, day: ctx.league.settings.tradeDeadlineDay } };
+    const late = { ...ctx, league: { ...ctx.league, day: ctx.league.settings.tradeDeadlineDay + 1 } };
+    const lastDay = { ...ctx, league: { ...ctx.league, day: ctx.league.settings.tradeDeadlineDay } };
+    expect(tradeProblems(lastDay, offer).join()).not.toMatch(/截止日/);
     expect(tradeProblems(late, offer).join()).toMatch(/截止日/);
   });
 

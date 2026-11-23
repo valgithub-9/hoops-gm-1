@@ -88,6 +88,7 @@ function PlayerView() {
           <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
             {team && <TeamChip abbrev={team.abbrev} primary={team.colors.primary} size={20} />}
             <span>{status}</span><span>· {p.position}</span><span>· {age} 歲</span><span>· {p.heightCm} cm</span>
+            {p.injury && <Badge tone="danger">{p.injury.type} · 還要缺席 {p.injury.gamesRemaining} 場</Badge>}
             {p.draft && <span>· {p.draft.season} 選秀第 {p.draft.pick} 順位</span>}
           </div>
         </div>

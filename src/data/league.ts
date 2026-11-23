@@ -187,7 +187,7 @@ export async function advanceRegular(
   let paused: AdvanceResult["paused"];
   if (start < deadline && end > deadline) {
     end = deadline;
-    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline} 天）。過了今天就不能交易，直到季後賽結束。` };
+    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。` };
   }
 
   const { simTeams, playerById } = await loadSimTeams(db, leagueId);
@@ -238,7 +238,7 @@ export async function advanceRegular(
   }
   if (eventPause) paused = { reason: "event", message: eventPause };
   else if (until === "deadline" && day === deadline) {
-    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline} 天）。過了今天就不能交易，直到季後賽結束。` };
+    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。` };
   }
   else if (paused && day < deadline) paused = undefined; // stopped early for another reason
   return { daysPlayed: day - start, gamesPlayed, day, phaseOver: day > final, ms: Math.round(performance.now() - t0), paused };

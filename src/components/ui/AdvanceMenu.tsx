@@ -2,7 +2,7 @@ import * as Menu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, FastForward, Play } from "lucide-react";
 import { Button } from "./Button";
 
-export type AdvanceOption = "day" | "week" | "phaseEnd";
+export type AdvanceOption = "day" | "week" | "deadline" | "phaseEnd";
 const DEFAULT_OPTIONS: { id: AdvanceOption; label: string }[] = [
   { id: "day", label: "推進一天" },
   { id: "week", label: "推進一週" },

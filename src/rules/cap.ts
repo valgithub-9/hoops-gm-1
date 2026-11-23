@@ -21,8 +21,9 @@ export const currentContract = (contracts: Contract[], playerId: string, season:
 /** Trades are open in the regular season before the deadline, and in the offseason (draft). */
 export function tradeWindow(league: Pick<League, "phase" | "day" | "settings">): string | null {
   if (league.phase === "playoffs") return "季後賽期間不能交易";
-  if (league.phase === "regular" && league.day >= league.settings.tradeDeadlineDay) {
-    return `已過交易截止日（例行賽第 ${league.settings.tradeDeadlineDay} 天）`;
+  // Deadline day itself is still open: advancing stops there so the user gets one last look.
+  if (league.phase === "regular" && league.day > league.settings.tradeDeadlineDay) {
+    return `已過交易截止日（例行賽第 ${league.settings.tradeDeadlineDay + 1} 天）`;
   }
   return null;
 }

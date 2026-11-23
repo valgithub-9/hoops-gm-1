@@ -3,11 +3,11 @@ feature,area,priority,original,clone,notes
 程序產生原創球隊（虛構城市、隊名、隊色）,league,must,genre,yes,
 程序產生原創球員（姓名、年齡、位置、能力、潛力）,players,must,genre,yes,
 例行賽賽程產生,season,must,genre,yes,循環賽制，每隊每天一場
-推進賽季（一天、一週、到下個階段）,season,must,genre,partial,一天、一週、到階段結束與換階段；還沒有「到交易截止日」和事件暫停
-比賽模擬引擎（能力、輪替影響結果，可用 seed 重現）,game,must,genre,partial,回合制、可重現；上場名單依分鐘加權，尚未追蹤場上五人、體力、犯滿
+推進賽季（一天、一週、到下個階段）,season,must,genre,yes,一天、一週、到交易截止日、到階段結束；交易截止日與主力重傷會暫停
+比賽模擬引擎（能力、輪替影響結果，可用 seed 重現）,game,must,genre,yes,v2：追蹤場上五人、換人、體力、犯規麻煩與六犯畢業、關鍵時刻留最強五人；可重現
 Box score 與球員單場數據,game,must,genre,yes,
 聯盟排名,season,must,genre,yes,
-球隊名單（能力、合約、傷病）,roster,must,genre,partial,能力、合約、本季平均；傷病系統未做
+球隊名單（能力、合約、傷病）,roster,must,genre,yes,
 球員資料頁（能力、數據、合約）,roster,must,genre,yes,能力（含與去年比較）、球探潛力區間、生涯數據、合約、獎項
 輪替與上場時間設定,roster,must,genre,yes,先發勾選、分鐘數（總和 240 才能存）、自動排；拖放未做
 季後賽與冠軍,season,must,genre,yes,每區前 N 名、七戰四勝、種子主場
@@ -22,7 +22,7 @@ Box score 與球員單場數據,game,must,genre,yes,
 新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
 逐球文字轉播,game,should,genre,no,
 戰術傾向（節奏、三分、內線、防守）,roster,should,genre,yes,輪替頁設定，引擎的出手選擇、節奏和犯規都會受影響
-傷病系統,players,should,genre,no,
+傷病系統,players,should,genre,yes,比賽中受傷，缺席 1 到 70 場，傷兵自動不上場，休賽季痊癒
 數據排行,season,should,genre,no,
 賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,yes,MVP、DPOY、ROY、第六人、總冠軍賽 MVP、年度一二隊
 通知收件匣（傷病、報價、合約）,platform,should,genre,partial,續約、離隊、退休、選秀、冠軍；交易報價與傷病未做

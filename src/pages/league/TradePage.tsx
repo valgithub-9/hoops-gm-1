@@ -157,7 +157,7 @@ function Trade() {
       {done && <p className="flex items-center gap-2 text-sm text-success" role="status"><ArrowLeftRight className="size-4" aria-hidden />{done}。<Link className="underline" to={`/l/${league.id}/rotation`}>看看新的輪替</Link></p>}
       <p className="text-xs text-text-subtle">
         規則：交易後超過薪資上限的球隊，收進的薪資最多只能是送出的 125%；名單最多 {league.settings.rosterMax} 人；
-        例行賽第 {league.settings.tradeDeadlineDay} 天後到季後賽結束前不能交易。難度越高，對方越精明。
+        例行賽第 {league.settings.tradeDeadlineDay + 1} 天（交易截止日）之後到季後賽結束前不能交易。難度越高，對方越精明。
       </p>
     </div>
   );

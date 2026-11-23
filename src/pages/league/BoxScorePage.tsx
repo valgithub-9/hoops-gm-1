@@ -20,7 +20,7 @@ const columns = (leagueId: string): Column<Line>[] => [
   { key: "stl", header: "抄截", numeric: true, cell: (l) => l.stl, sortValue: (l) => l.stl },
   { key: "blk", header: "火鍋", numeric: true, cell: (l) => l.blk, sortValue: (l) => l.blk },
   { key: "tov", header: "失誤", numeric: true, cell: (l) => l.tov, sortValue: (l) => l.tov },
-  { key: "pf", header: "犯規", numeric: true, cell: (l) => l.pf, sortValue: (l) => l.pf },
+  { key: "pf", header: "犯規", numeric: true, cell: (l) => (l.pf >= 6 ? <span className="text-danger" title="六犯畢業">{l.pf} 犯滿</span> : l.pf), sortValue: (l) => l.pf },
 ];
 
 // S09

@@ -66,6 +66,15 @@ function RotationEditor() {
         </div>
       </div>
       {problems.length > 0 && <ul className="flex flex-wrap gap-2" aria-label="輪替問題">{problems.map((p) => <li key={p}><Badge tone="warning">{p}</Badge></li>)}</ul>}
+      {(() => {
+        const hurt = rows.filter((r) => r.player.injury && draft.starters.includes(r.player.id));
+        return hurt.length > 0 && (
+          <p className="text-sm text-warning" role="status">
+            先發 {hurt.map((r) => r.player.lastName).join("、")} 受傷中：比賽時會由替補自動頂上，他的上場時間分給其他人。也可以現在就換掉他。
+          </p>
+        );
+      })()}
+      <p className="text-xs text-text-subtle">分鐘數是目標：球員累了會被換下、犯規麻煩會先坐板凳、比分接近的最後 4 分鐘會留最好的球員在場上，所以實際分鐘會有幾分鐘的差距。</p>
       {error && <p className="text-sm text-danger" role="alert">{error}</p>}
 
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
@@ -91,7 +100,10 @@ function RotationEditor() {
                   <td className="px-3 h-[52px]">
                     <input type="checkbox" className="size-4 accent-[rgb(var(--color-accent))]" checked={starter} onChange={() => toggleStarter(id)} aria-label={`${name} 先發`} />
                   </td>
-                  <td className="px-3"><Link to={`/l/${league.id}/player/${id}`} className="font-medium hover:text-accent-text">{name}</Link></td>
+                  <td className="px-3">
+                    <Link to={`/l/${league.id}/player/${id}`} className="font-medium hover:text-accent-text">{name}</Link>
+                    {r.player.injury && <Badge tone="danger" className="ml-2">傷 · 缺 {r.player.injury.gamesRemaining} 場</Badge>}
+                  </td>
                   <td className="px-3 text-text-muted">{r.player.position}</td>
                   <td className="px-3 text-right"><Ovr value={r.player.overall} size="sm" /></td>
                   <td className="px-3">
