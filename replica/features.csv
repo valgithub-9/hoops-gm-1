@@ -21,7 +21,7 @@ Box score 與球員單場數據,game,must,genre,yes,
 選秀樂透,draft,should,genre,no,目前純依戰績倒序
 新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
 逐球文字轉播,game,should,genre,no,
-戰術傾向（節奏、三分、內線、防守）,roster,should,genre,no,
+戰術傾向（節奏、三分、內線、防守）,roster,should,genre,yes,輪替頁設定，引擎的出手選擇、節奏和犯規都會受影響
 傷病系統,players,should,genre,no,
 數據排行,season,should,genre,no,
 賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,yes,MVP、DPOY、ROY、第六人、總冠軍賽 MVP、年度一二隊
