@@ -9,6 +9,9 @@ import { champion, getBracket, bracketOrder } from "../data/playoffs";
 import { exportLeague, importLeague } from "../data/saveFile";
 import { saveRotation } from "../data/team";
 import { deleteLeague } from "../data/league";
+import { askFor, expiring, extendContract, signFreeAgent } from "../data/freeAgency";
+import { payroll } from "../rules/cap";
+import { autoRotation } from "../engine/sim";
 
 const db = new SaveDb();
 
@@ -27,7 +30,33 @@ async function playSeason(leagueId: string, userPicks = false) {
     await expect(draftPlayer(db, leagueId, prospects[0].id)).resolves.toBeUndefined();
   }
   await autoDraft(db, leagueId, "all");
+
+  // Act like a GM: extend the best expiring player during the offseason...
+  league = (await db.leagues.get(leagueId))!;
+  let contracts = await db.contracts.where("leagueId").equals(leagueId).toArray();
+  let roster = await db.players.where("[leagueId+teamId]").equals([leagueId, league.userTeamId]).toArray();
+  const best = expiring(contracts, roster, league.season).sort((a, b) => b.overall - a.overall)[0];
+  if (best) expect((await extendContract(db, leagueId, best.id, askFor(best, league, 0.95))).accepted).toBe(true);
+
   expect(await nextPhase(db, leagueId)).toBe("regular");
+
+  // ...then fill the roster from free agency before the new season can start.
+  league = (await db.leagues.get(leagueId))!;
+  roster = await db.players.where("[leagueId+teamId]").equals([leagueId, league.userTeamId]).toArray();
+  if (best) expect(roster.some((p) => p.id === best.id)).toBe(true);
+  const fas = (await db.players.where("[leagueId+teamId]").equals([leagueId, FREE_AGENT]).toArray())
+    .filter((p) => !p.isProspect && p.retiredSeason === ACTIVE).sort((a, b) => b.overall - a.overall);
+  for (const fa of fas) {
+    if (roster.length >= league.settings.rosterMin) break;
+    contracts = await db.contracts.where("leagueId").equals(leagueId).toArray();
+    const room = league.settings.salaryCap - payroll(contracts, league.userTeamId, league.season);
+    const ask = askFor(fa, league);
+    if (ask.salary > room && ask.salary > league.settings.minSalary) continue; // cannot afford him
+    expect((await signFreeAgent(db, leagueId, fa.id, ask)).accepted).toBe(true);
+    roster = await db.players.where("[leagueId+teamId]").equals([leagueId, league.userTeamId]).toArray();
+  }
+  const team = (await db.teams.get(league.userTeamId))!;
+  await saveRotation(db, leagueId, { ...autoRotation(roster), tactics: team.rotation.tactics });
 }
 
 describe("bracket", () => {

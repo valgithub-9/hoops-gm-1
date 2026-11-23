@@ -2,7 +2,7 @@ import {
   ACTIVE, FREE_AGENT,
   type Contract, type GameEvent, type League, type Player, type RatingHistory, type SaveDb, type Team,
 } from "../db/schema";
-import { askingSalary, overall, RATING_KEYS } from "../engine/players";
+import { askingSalary, generatePlayer, overall, POSITIONS, RATING_KEYS } from "../engine/players";
 import { clamp, makeRng, type Rng } from "../engine/rng";
 import { autoRotation } from "../engine/sim";
 import { lastRegularDay, MAX_SALARY } from "./league";
@@ -86,10 +86,20 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
 
   // 2. Expiring contracts: teams keep players who are worth it and still in their plans.
   const rosterOf = (teamId: string) => [...players.values()].filter((p) => p.teamId === teamId && p.retiredSeason === ACTIVE);
+  // The user's own players are never decided here: extend them in free agency before the season ends,
+  // or they leave. AI teams decide for themselves.
+  const leftUser = new Set<string>();
+  const extended = new Set(contracts.filter((c) => c.type !== "released" && c.startSeason > season).map((c) => c.playerId));
   for (const c of contracts) {
-    if (c.endSeason !== season) continue;
+    if (c.endSeason !== season || c.type === "released") continue;
     const p = players.get(c.playerId);
-    if (!p || p.retiredSeason !== ACTIVE || p.teamId !== c.teamId) continue;
+    if (!p || p.retiredSeason !== ACTIVE || p.teamId !== c.teamId || extended.has(p.id)) continue;
+    if (c.teamId === user.id) {
+      players.set(p.id, { ...p, teamId: FREE_AGENT });
+      leftUser.add(p.id);
+      ev(`${fullName(p)} 合約到期沒有續約，成為自由球員。想留他的話可以到自由市場把他簽回來。`);
+      continue;
+    }
     const roster = rosterOf(c.teamId).sort((a, b) => b.overall - a.overall);
     const rank = roster.findIndex((x) => x.id === p.id);
     const age = next - p.bornYear;
@@ -101,16 +111,14 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
         id: crypto.randomUUID(), leagueId, playerId: p.id, teamId: c.teamId, salaryPerYear: salary,
         startSeason: next, endSeason: season + years, type: p.overall < 48 ? "minimum" : "standard", option: null,
       });
-      if (c.teamId === user.id) ev(`${fullName(p)} 續約 ${years} 年，每年 $${(salary / 1000).toFixed(1)}M。`);
     } else {
       players.set(p.id, { ...p, teamId: FREE_AGENT });
-      if (c.teamId === user.id) ev(`${fullName(p)} 合約到期，離隊成為自由球員。`);
     }
   }
 
   // 3. Roster limits: release the weakest when over the max, sign the best free agents when under the min.
   const salaryOf = (id: string) => newContracts.find((c) => c.playerId === id && c.endSeason >= next)
-    ?? contracts.find((c) => c.playerId === id && c.endSeason >= next && !endedContracts.some((e) => e.id === c.id));
+    ?? contracts.find((c) => c.playerId === id && c.type !== "released" && c.endSeason >= next && !endedContracts.some((e) => e.id === c.id));
   for (const t of teams) {
     const roster = rosterOf(t.id).sort((a, b) => a.overall + a.potential * 0.3 - (b.overall + b.potential * 0.3));
     while (roster.length > league.settings.rosterMax) {
@@ -125,6 +133,7 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     .filter((p) => p.teamId === FREE_AGENT && p.retiredSeason === ACTIVE && p.isProspect === 0)
     .sort((a, b) => b.overall - a.overall);
   for (const t of rng.shuffle([...teams])) {
+    if (t.id === user.id) continue; // the user fills their own roster in free agency
     while (rosterOf(t.id).length < league.settings.rosterMin) {
       const fa = freeAgents()[0];
       if (!fa) break;
@@ -134,14 +143,27 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
         id: crypto.randomUUID(), leagueId, playerId: fa.id, teamId: t.id, salaryPerYear: salary,
         startSeason: next, endSeason: next, type: salary <= league.settings.minSalary ? "minimum" : "standard", option: null,
       });
-      if (t.id === user.id) ev(`名單不足 ${league.settings.rosterMin} 人，簽下自由球員 ${fullName(fa)}（總評 ${fa.overall}）一年約。`);
     }
   }
 
   // 3b. The free-agent pool stays about three deep per team: the rest leave the league.
   // Without this the pool grows every year and teams skim an ever larger talent pool.
   const pool = freeAgents().sort((a, b) => (b.overall + b.potential * 0.5) - (a.overall + a.potential * 0.5));
-  for (const p of pool.slice(league.settings.numTeams * 3)) players.set(p.id, { ...p, retiredSeason: season });
+  // Players who just left the user's team stay one more year, so they can be signed back.
+  for (const p of pool.slice(league.settings.numTeams * 3)) if (!leftUser.has(p.id)) players.set(p.id, { ...p, retiredSeason: season });
+  // There must always be enough minimum-salary depth players: a team over the cap can only sign those.
+  const minPlayers = freeAgents().filter((p) => askingSalary(p.overall, league.settings.minSalary, MAX_SALARY) <= league.settings.minSalary);
+  for (let i = minPlayers.length; i < league.settings.numTeams + 5; i++) {
+    const g = generatePlayer(rng, rng.pick(POSITIONS), -14, rng.int(23, 31));
+    const id = crypto.randomUUID();
+    players.set(id, {
+      id, leagueId, teamId: FREE_AGENT, firstName: g.firstName, lastName: g.lastName, bornYear: next - g.age,
+      position: g.position, heightCm: g.heightCm, ratings: g.ratings, overall: g.overall, potential: g.overall,
+      injury: null, draft: null, isProspect: 0, retiredSeason: ACTIVE, portraitSeed: g.portraitSeed,
+    });
+  }
+  const short = league.settings.rosterMin - rosterOf(user.id).length;
+  if (short > 0) ev(`名單只有 ${rosterOf(user.id).length} 人，還差 ${short} 人才能開賽。到「自由市場」補人。`, "milestone");
 
   // 4. Rotations for the new rosters. The user's tactics are kept.
   const newTeams: Team[] = teams.map((t) => {
@@ -151,7 +173,8 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
   if (rosterOf(user.id).length) ev("新球季的輪替已依總評自動重排，可以到「輪替」調整。", "milestone");
 
   // 5. Next season.
-  const setup = seasonSetup(league, next, newTeams);
+  const existingPicks = await db.draftPicks.where("leagueId").equals(leagueId).toArray();
+  const setup = seasonSetup(league, next, newTeams, existingPicks);
   // Box scores are kept for the last `keepPlayByPlaySeasons` seasons; older ones live on as season totals.
   const dropBefore = next - league.settings.keepPlayByPlaySeasons + 1;
   await db.transaction("rw",

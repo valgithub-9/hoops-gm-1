@@ -4,7 +4,7 @@ export const money = (thousands: number) =>
   thousands >= 1000 ? `$${(thousands / 1000).toFixed(1)}M` : `$${thousands}K`;
 
 export function ContractTag({ salary, years, kind, expiring }: {
-  salary: number; years: number; kind?: "rookie" | "standard" | "minimum"; expiring?: boolean;
+  salary: number; years: number; kind?: "rookie" | "standard" | "minimum" | "released"; expiring?: boolean;
 }) {
   return (
     <span className={cn(
@@ -15,6 +15,7 @@ export function ContractTag({ salary, years, kind, expiring }: {
       <span className="text-text-subtle">×{years}年</span>
       {kind === "rookie" && <span className="text-info">新秀約</span>}
       {kind === "minimum" && <span className="text-text-subtle">底薪</span>}
+      {kind === "released" && <span className="text-danger">已釋出</span>}
       {expiring && <span>到期</span>}
     </span>
   );

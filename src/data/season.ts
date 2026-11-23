@@ -8,7 +8,7 @@ import { makeSchedule } from "../engine/schedule";
 import type { GameResult, SimTeam } from "../engine/sim";
 
 /** Everything a new season needs: schedule, standings rows, draft picks and the draft class. */
-export function seasonSetup(league: Pick<League, "id" | "seed" | "settings">, season: number, teams: Team[]) {
+export function seasonSetup(league: Pick<League, "id" | "seed" | "settings">, season: number, teams: Team[], existingPicks: DraftPick[] = []) {
   const { settings } = league;
   const schedule = makeSchedule(settings.numTeams, settings.gamesPerSeason, makeRng(`${league.seed}:schedule:${season}`));
   const games: Game[] = schedule.map((g, n) => ({
@@ -22,11 +22,15 @@ export function seasonSetup(league: Pick<League, "id" | "seed" | "settings">, se
     id: crypto.randomUUID(), leagueId: league.id, teamId: t.id, season,
     wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, playoffResult: null, playoffRoundReached: null,
   }));
-  // Picks for this season's draft (held at the end of the season).
-  const picks: DraftPick[] = teams.flatMap((t) => ([1, 2] as const).map((round) => ({
-    id: crypto.randomUUID(), leagueId: league.id, season, round,
-    originalTeamId: t.id, ownerTeamId: t.id, pickNo: null, playerId: null,
-  })));
+  // Picks for this season's draft and next season's, so future picks can be traded.
+  // Only the ones that do not exist yet: next season's were made a year ago.
+  const have = new Set(existingPicks.map((p) => `${p.season}|${p.round}|${p.originalTeamId}`));
+  const picks: DraftPick[] = [season, season + 1].flatMap((s) => teams.flatMap((t) => ([1, 2] as const)
+    .filter((round) => !have.has(`${s}|${round}|${t.id}`))
+    .map((round) => ({
+      id: crypto.randomUUID(), leagueId: league.id, season: s, round,
+      originalTeamId: t.id, ownerTeamId: t.id, pickNo: null, playerId: null,
+    }))));
   const prospects = draftClass(league, season, makeRng(`${league.seed}:draftclass:${season}`));
   return { games, teamSeasons, picks, prospects };
 }

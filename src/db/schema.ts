@@ -153,7 +153,8 @@ export interface Contract {
   salaryPerYear: Money;
   startSeason: Season;
   endSeason: Season; // inclusive; one active contract per player at a time
-  type: "rookie" | "standard" | "minimum";
+  /** "released": the player was cut; the team still pays him until endSeason. */
+  type: "rookie" | "standard" | "minimum" | "released";
   option: { kind: "player" | "team"; season: Season } | null;
 }
 
