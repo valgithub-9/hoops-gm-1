@@ -1,8 +1,8 @@
-import type { Game, League, PlayerGameStat, SaveDb, Team, TeamSeason } from "../db/schema";
+import type { Game, GameEvent, League, PlayerGameStat, SaveDb, Team, TeamSeason } from "../db/schema";
 import { simGame } from "../engine/sim";
 import { conferenceStandings } from "../lib/standings";
 import { computeAwards } from "./awards";
-import { loadSimTeams, newEvent, statRows } from "./season";
+import { applyInjuries, injuryEvents, loadSimTeams, newEvent, statRows } from "./season";
 import type { AdvanceResult, AdvanceUntil } from "./league";
 
 export const WINS_NEEDED = 4;
@@ -122,8 +122,9 @@ export async function advancePlayoffs(
   shouldStop?: () => boolean,
 ): Promise<AdvanceResult> {
   const t0 = performance.now();
-  const { simTeams } = await loadSimTeams(db, league.id);
+  const { simTeams, playerById } = await loadSimTeams(db, league.id);
   let day = league.day, gamesPlayed = 0, daysPlayed = 0;
+  let eventPause: string | null = null;
   const maxDays = until === "day" ? 1 : until === "week" ? 7 : Infinity;
 
   while (daysPlayed < maxDays && !shouldStop?.()) {
@@ -132,6 +133,8 @@ export async function advancePlayoffs(
     const current = rounds.find((r) => r.some((s) => !s.winner))!;
     const finished: Game[] = [];
     const lines: PlayerGameStat[] = [];
+    const changed = new Set<string>();
+    const events: GameEvent[] = [];
     for (const s of current) {
       if (s.winner || !s.top || !s.bottom) continue;
       const gameNo = s.winsTop + s.winsBottom + 1;
@@ -149,11 +152,17 @@ export async function advancePlayoffs(
       g.scoreAway = r.scoreAway;
       finished.push(g);
       lines.push(...statRows(league.id, league.season, g, home, away, r));
+      applyInjuries([home, away], playerById, r, changed);
+      const inj = injuryEvents(league, r, [home, away].find((t) => t.id === league.userTeamId), playerById);
+      events.push(...inj.events);
+      eventPause ??= inj.pause;
     }
     day++;
-    await db.transaction("rw", [db.games, db.playerGameStats, db.leagues], async () => {
+    await db.transaction("rw", [db.games, db.playerGameStats, db.leagues, db.players, db.events], async () => {
       await db.games.bulkAdd(finished);
       await db.playerGameStats.bulkAdd(lines);
+      for (const id of changed) await db.players.update(id, { injury: playerById.get(id)!.injury });
+      if (events.length) await db.events.bulkAdd(events);
       await db.leagues.update(league.id, { day, updatedAt: new Date().toISOString() });
     });
     league = { ...league, day };
@@ -166,9 +175,14 @@ export async function advancePlayoffs(
       await finishPlayoffs(db, league, after.rounds, teams, standings);
       break;
     }
+    if (eventPause) break;
   }
   const { rounds } = await loadBracket(db, league);
-  return { daysPlayed, gamesPlayed, day, phaseOver: !!champion(rounds), ms: Math.round(performance.now() - t0) };
+  const over = !!champion(rounds);
+  return {
+    daysPlayed, gamesPlayed, day, phaseOver: over, ms: Math.round(performance.now() - t0),
+    paused: eventPause && !over ? { reason: "event", message: eventPause } : undefined,
+  };
 }
 
 /** Records how far every team went, writes season stats and awards. Runs once. */

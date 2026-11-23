@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
 import { ACTIVE, FREE_AGENT, SaveDb } from "../db/schema";
-import { advance, rotationProblems } from "../data/advance";
+import { advanceThrough, rotationProblems } from "../data/advance";
 import { autoDraft, draftPlayer, draftState } from "../data/draft";
 import { createLeague } from "../data/league";
 import { nextPhase } from "../data/offseason";
@@ -16,9 +16,9 @@ import { autoRotation } from "../engine/sim";
 const db = new SaveDb();
 
 async function playSeason(leagueId: string, userPicks = false) {
-  await advance(db, leagueId, "phaseEnd");
+  await advanceThrough(db, leagueId);
   expect(await nextPhase(db, leagueId)).toBe("playoffs");
-  await advance(db, leagueId, "phaseEnd");
+  await advanceThrough(db, leagueId);
   let league = (await db.leagues.get(leagueId))!;
   expect(champion(await getBracket(db, league))).toBeTruthy();
   expect(await nextPhase(db, leagueId)).toBe("draft");
@@ -139,7 +139,7 @@ describe("eight seasons in a row (8 teams, 20 games)", () => {
 describe("save files", () => {
   it("exports and imports a save, and refuses a duplicate or foreign file", async () => {
     const id = await createLeague(db, { name: "Export", numTeams: 4, gamesPerSeason: 6, userTeamIndex: 0, difficulty: "normal", seed: "exp" });
-    await advance(db, id, "phaseEnd");
+    await advanceThrough(db, id);
     const file = await exportLeague(db, id);
     const text = JSON.stringify(file);
     await expect(importLeague(db, text)).rejects.toThrow(/已經在/);

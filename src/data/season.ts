@@ -68,12 +68,53 @@ export async function loadSimTeams(db: SaveDb, leagueId: string) {
       id: t.id,
       tactics: t.rotation.tactics,
       players: roster.map((p) => ({
-        id: p.id, ratings: p.ratings, overall: p.overall,
+        id: p.id, ratings: p.ratings, overall: p.overall, position: p.position,
         minutes: t.rotation.minutes[p.id] ?? 0, starter: t.rotation.starters.includes(p.id),
+        injuryGames: p.injury?.gamesRemaining ?? 0,
       })),
     });
   }
-  return { teams, simTeams };
+  return { teams, simTeams, playerById: new Map(players.map((p) => [p.id, p])) };
+}
+
+/**
+ * After a game: players who sat it out injured count down one game, then this
+ * game's new injuries are added. Mutates the in-memory sim teams and players;
+ * returns the ids of players whose injury changed, to be written with the day.
+ */
+export function applyInjuries(teams: SimTeam[], players: Map<string, Player>, r: GameResult, changed: Set<string>) {
+  const fresh = new Set(r.injuries.map((i) => i.playerId));
+  for (const t of teams) {
+    for (const sp of t.players) {
+      if (!sp.injuryGames || fresh.has(sp.id)) continue;
+      sp.injuryGames--;
+      const p = players.get(sp.id)!;
+      p.injury = sp.injuryGames > 0 ? { ...p.injury!, gamesRemaining: sp.injuryGames } : null;
+      changed.add(sp.id);
+    }
+  }
+  for (const i of r.injuries) {
+    const sp = teams.flatMap((t) => t.players).find((x) => x.id === i.playerId)!;
+    sp.injuryGames = i.gamesOut;
+    players.get(i.playerId)!.injury = { type: i.type, gamesRemaining: i.gamesOut };
+    changed.add(i.playerId);
+  }
+}
+
+/** Inbox items for injuries on the user's team. A long injury to a rotation player pauses advancing. */
+export function injuryEvents(league: Pick<League, "id" | "season" | "day" | "userTeamId">, r: GameResult, team: SimTeam | undefined, players: Map<string, Player>) {
+  const events: GameEvent[] = [];
+  let pause: string | null = null;
+  if (!team || team.id !== league.userTeamId) return { events, pause };
+  for (const i of r.injuries.filter((x) => x.teamId === team.id)) {
+    const p = players.get(i.playerId)!;
+    const sp = team.players.find((x) => x.id === i.playerId)!;
+    const serious = i.gamesOut >= 5 && sp.minutes >= 10;
+    const text = `${fullName(p)} ${i.type}，預計缺席 ${i.gamesOut} 場。${serious ? "他的上場時間會先分給隊友，可以到「輪替」調整。" : ""}`;
+    events.push(newEvent(league, "injury", { text, playerId: p.id }, serious));
+    if (serious && !pause) pause = text;
+  }
+  return { events, pause };
 }
 
 /** Box-score rows for one finished game. */
@@ -82,7 +123,7 @@ export function statRows(leagueId: string, season: number, game: Game, home: Sim
   for (const team of [home, away]) {
     for (const p of team.players) {
       const s = r.stats.get(p.id)!;
-      if (s.min === 0) continue;
+      if (s.min === 0 && s.pf === 0 && s.fga === 0 && s.fta === 0 && s.reb === 0 && s.tov === 0) continue;
       const { oreb: _oreb, ...line } = s;
       rows.push({ id: crypto.randomUUID(), leagueId, gameId: game.id, season, isPlayoff: game.isPlayoff, playerId: p.id, teamId: team.id, ...line });
     }

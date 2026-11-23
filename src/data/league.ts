@@ -1,13 +1,13 @@
 import Dexie from "dexie";
 import {
   ACTIVE, FREE_AGENT, LEAGUE_OWNED_TABLES, SCHEMA_VERSION,
-  type Contract, type Game, type League, type LeagueSettings, type Player, type PlayerGameStat, type Team, type SaveDb,
+  type Contract, type Game, type GameEvent, type League, type LeagueSettings, type Player, type PlayerGameStat, type Team, type SaveDb,
 } from "../db/schema";
 import { CITIES, MASCOTS, TEAM_COLORS } from "../engine/names";
 import { askingSalary, generatePlayer, POSITIONS } from "../engine/players";
 import { makeRng } from "../engine/rng";
 import { autoRotation, simGame } from "../engine/sim";
-import { loadSimTeams, seasonSetup, statRows } from "./season";
+import { applyInjuries, injuryEvents, loadSimTeams, seasonSetup, statRows } from "./season";
 
 export const START_SEASON = 2027;
 export const ROSTER_SIZE = 14;
@@ -150,8 +150,12 @@ export async function deleteLeague(db: SaveDb, leagueId: string) {
   });
 }
 
-export type AdvanceUntil = "day" | "week" | "phaseEnd";
-export interface AdvanceResult { daysPlayed: number; gamesPlayed: number; day: number; phaseOver: boolean; ms: number }
+export type AdvanceUntil = "day" | "week" | "deadline" | "phaseEnd";
+export interface AdvanceResult {
+  daysPlayed: number; gamesPlayed: number; day: number; phaseOver: boolean; ms: number;
+  /** Why advancing stopped early: an event that needs the user, or the trade deadline. */
+  paused?: { reason: "event" | "deadline"; message: string };
+}
 
 /** Last regular-season day index with games, or -1. */
 export async function lastRegularDay(db: SaveDb, league: League) {
@@ -176,20 +180,30 @@ export async function advanceRegular(
   const final = await lastRegularDay(db, league);
   const start = league.day;
   if (start > final) return { daysPlayed: 0, gamesPlayed: 0, day: start, phaseOver: true, ms: 0 };
-  const target = until === "day" ? start + 1 : until === "week" ? start + 7 : final + 1;
-  const end = Math.min(target, final + 1);
+  const deadline = league.settings.tradeDeadlineDay;
+  const target = until === "day" ? start + 1 : until === "week" ? start + 7 : until === "deadline" ? Math.max(start + 1, deadline) : final + 1;
+  let end = Math.min(target, final + 1);
+  // A run that would carry past the trade deadline stops there once, so the user gets a last chance to deal.
+  let paused: AdvanceResult["paused"];
+  if (start < deadline && end > deadline) {
+    end = deadline;
+    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline} 天）。過了今天就不能交易，直到季後賽結束。` };
+  }
 
-  const { simTeams } = await loadSimTeams(db, leagueId);
+  const { simTeams, playerById } = await loadSimTeams(db, leagueId);
   const standings = new Map(
     (await db.teamSeasons.where("[leagueId+season]").equals([leagueId, league.season]).toArray()).map((s) => [s.teamId, s]),
   );
 
   let gamesPlayed = 0, day = start;
+  let eventPause: string | null = null;
   for (; day < end; day++) {
     if (shouldStop?.()) break;
     const todays = await db.games.where("[leagueId+season+day]").equals([leagueId, league.season, day]).toArray();
     const finished: Game[] = [];
     const lines: PlayerGameStat[] = [];
+    const changed = new Set<string>();
+    const events: GameEvent[] = [];
     for (const g of todays) {
       if (g.status !== "scheduled" || g.isPlayoff) continue;
       const home = simTeams.get(g.homeTeamId)!, away = simTeams.get(g.awayTeamId)!;
@@ -197,6 +211,11 @@ export async function advanceRegular(
       const done: Game = { ...g, status: "final", scoreHome: r.scoreHome, scoreAway: r.scoreAway };
       finished.push(done);
       lines.push(...statRows(leagueId, league.season, done, home, away, r));
+      applyInjuries([home, away], playerById, r, changed);
+      const mine = [home, away].find((t) => t.id === league.userTeamId);
+      const inj = injuryEvents({ ...league, day }, r, mine, playerById);
+      events.push(...inj.events);
+      eventPause ??= inj.pause;
       for (const [team, isHome] of [[home, true], [away, false]] as const) {
         const ts = standings.get(team.id)!;
         const pf = isHome ? r.scoreHome : r.scoreAway, pa = isHome ? r.scoreAway : r.scoreHome;
@@ -205,14 +224,22 @@ export async function advanceRegular(
         if (pf > pa) ts.wins++; else ts.losses++;
       }
     }
-    await db.transaction("rw", [db.games, db.playerGameStats, db.teamSeasons, db.leagues], async () => {
+    await db.transaction("rw", [db.games, db.playerGameStats, db.teamSeasons, db.leagues, db.players, db.events], async () => {
       await db.games.bulkPut(finished);
       await db.playerGameStats.bulkAdd(lines);
       await db.teamSeasons.bulkPut([...standings.values()]);
+      for (const id of changed) await db.players.update(id, { injury: playerById.get(id)!.injury });
+      if (events.length) await db.events.bulkAdd(events);
       await db.leagues.update(leagueId, { day: day + 1, updatedAt: new Date().toISOString() });
     });
     gamesPlayed += finished.length;
     onProgress?.({ day: day + 1, lastDay: final + 1 });
+    if (eventPause) { day++; break; }
   }
-  return { daysPlayed: day - start, gamesPlayed, day, phaseOver: day > final, ms: Math.round(performance.now() - t0) };
+  if (eventPause) paused = { reason: "event", message: eventPause };
+  else if (until === "deadline" && day === deadline) {
+    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline} 天）。過了今天就不能交易，直到季後賽結束。` };
+  }
+  else if (paused && day < deadline) paused = undefined; // stopped early for another reason
+  return { daysPlayed: day - start, gamesPlayed, day, phaseOver: day > final, ms: Math.round(performance.now() - t0), paused };
 }

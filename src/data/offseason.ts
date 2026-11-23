@@ -74,7 +74,7 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     history.push({ id: crypto.randomUUID(), leagueId, playerId: p.id, season, ratings: p.ratings, overall: p.overall });
     const wasProspect = p.isProspect === 1;
     const age = next - p.bornYear;
-    let q = progressPlayer(p, age, rng);
+    let q: Player = { ...progressPlayer(p, age, rng), injury: null }; // everyone heals over the summer
     if (wasProspect) q = { ...q, isProspect: 0, teamId: FREE_AGENT }; // went undrafted
     if (!wasProspect && retires(age, q.overall, rng)) {
       q = { ...q, retiredSeason: season, teamId: FREE_AGENT };

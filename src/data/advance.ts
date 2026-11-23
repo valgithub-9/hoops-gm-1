@@ -17,6 +17,16 @@ export async function advance(
   return { daysPlayed: 0, gamesPlayed: 0, day: league.day, phaseOver: true, ms: 0 };
 }
 
+/** Keeps advancing through pauses (deadline, injuries) until the phase is over. For tests and "sim to end" tools. */
+export async function advanceThrough(db: SaveDb, leagueId: string): Promise<number> {
+  let pauses = 0;
+  for (;;) {
+    const r = await advance(db, leagueId, "phaseEnd");
+    if (r.phaseOver || r.daysPlayed === 0) return pauses;
+    pauses++;
+  }
+}
+
 /** Why the user's team cannot play right now, in words. Empty when it can. */
 export async function rosterProblems(db: SaveDb, leagueId: string): Promise<string[]> {
   const league = (await db.leagues.get(leagueId))!;
