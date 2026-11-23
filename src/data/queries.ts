@@ -9,6 +9,7 @@ import { lastRegularDay } from "./league";
 import { champion, getBracket, type Series } from "./playoffs";
 import { draftDone, draftState } from "./draft";
 import { rosterProblems } from "./advance";
+import { loadTradeContext } from "./trade";
 
 const useVersion = () => useSyncExternalStore(subscribeData, () => dataVersion);
 
@@ -171,6 +172,12 @@ export function usePlayer(playerId: string | undefined) {
       .between([playerId, Dexie.minKey], [playerId, Dexie.maxKey]).toArray();
     return { player, lines, contracts, history, awards, team, seasonTotals };
   }, [playerId, v]);
+}
+
+/** Everything the trade, free-agency and finances screens read. Re-runs on any change. */
+export function useMarket(leagueId: string | undefined) {
+  const v = useVersion();
+  return useLiveQuery(async () => (leagueId ? loadTradeContext(db, leagueId) : undefined), [leagueId, v]);
 }
 
 export function useAwards(leagueId: string | undefined) {

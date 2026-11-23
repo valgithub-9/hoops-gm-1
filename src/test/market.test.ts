@@ -13,6 +13,9 @@ let id = "";
 let ctx: TradeContext;
 const P = (playerId: string): TradeAsset => ({ kind: "player", playerId });
 
+/** The AI team with the most cap room, so salary matching does not get in the way of the scenario. */
+const roomiest = () => [...ctx.teams.values()].filter((t) => !t.isUser)
+  .sort((a, b) => payroll(ctx.contracts, a.id, ctx.league.season) - payroll(ctx.contracts, b.id, ctx.league.season))[0];
 const rosterOf = (teamId: string) => [...ctx.players.values()].filter((p) => p.teamId === teamId).sort((a, b) => b.overall - a.overall);
 
 beforeAll(async () => {
@@ -26,7 +29,7 @@ describe("trade value", () => {
   });
 
   it("rejects a scrub for the partner's best player, accepts the reverse", () => {
-    const partner = [...ctx.teams.values()].find((t) => !t.isUser)!;
+    const partner = roomiest();
     const mine = rosterOf(ctx.league.userTeamId), theirs = rosterOf(partner.id);
     const lopsided: TradeOffer = { partnerId: partner.id, give: [P(mine[mine.length - 1].id)], get: [P(theirs[0].id)] };
     expect(evaluateTrade(ctx, lopsided).decision).not.toBe("accept");
@@ -36,7 +39,7 @@ describe("trade value", () => {
   });
 
   it("is harder on hard difficulty", () => {
-    const partner = [...ctx.teams.values()].find((t) => !t.isUser)!;
+    const partner = roomiest();
     const mine = rosterOf(ctx.league.userTeamId), theirs = rosterOf(partner.id);
     // Find a fair-ish 1-for-1 that normal accepts, then check hard is never more generous.
     for (const a of mine.slice(0, 8)) for (const b of theirs.slice(0, 8)) {
@@ -60,14 +63,14 @@ describe("trade rules", () => {
   });
 
   it("closes trades after the deadline", () => {
-    const partner = [...ctx.teams.values()].find((t) => !t.isUser)!;
+    const partner = roomiest();
     const offer: TradeOffer = { partnerId: partner.id, give: [P(rosterOf(ctx.league.userTeamId)[0].id)], get: [] };
     const late = { ...ctx, league: { ...ctx.league, day: ctx.league.settings.tradeDeadlineDay } };
     expect(tradeProblems(late, offer).join()).toMatch(/截止日/);
   });
 
   it("executes an accepted trade: players, contracts and picks change hands", async () => {
-    const partner = [...ctx.teams.values()].find((t) => !t.isUser)!;
+    const partner = roomiest();
     const mine = rosterOf(ctx.league.userTeamId), theirs = rosterOf(partner.id);
     const myPick = tradablePicks(ctx, ctx.league.userTeamId)[0];
     const offer: TradeOffer = { partnerId: partner.id, give: [P(mine[1].id), { kind: "pick", pickId: myPick.id }], get: [P(theirs[theirs.length - 1].id)] };

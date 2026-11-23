@@ -89,6 +89,11 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
   // The user's own players are never decided here: extend them in free agency before the season ends,
   // or they leave. AI teams decide for themselves.
   const leftUser = new Set<string>();
+  /** Next season's payroll for a team, counting decisions made so far this offseason. */
+  const nextPayroll = (teamId: string) =>
+    [...contracts.filter((c) => !endedContracts.some((e) => e.id === c.id)), ...newContracts]
+      .filter((c) => c.teamId === teamId && c.startSeason <= next && c.endSeason >= next)
+      .reduce((n, c) => n + c.salaryPerYear, 0);
   const extended = new Set(contracts.filter((c) => c.type !== "released" && c.startSeason > season).map((c) => c.playerId));
   for (const c of contracts) {
     if (c.endSeason !== season || c.type === "released") continue;
@@ -103,10 +108,12 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     const roster = rosterOf(c.teamId).sort((a, b) => b.overall - a.overall);
     const rank = roster.findIndex((x) => x.id === p.id);
     const age = next - p.bornYear;
-    const keep = rank < 9 && (age < 33 || p.overall >= 60) && rng() < 0.8;
+    const salary = askingSalary(p.overall, league.settings.minSalary, MAX_SALARY);
+    // AI teams may re-sign over the cap, but not past the luxury-tax line.
+    const affordable = nextPayroll(c.teamId) + salary <= league.settings.luxuryTax;
+    const keep = rank < 9 && (age < 33 || p.overall >= 60) && affordable && rng() < 0.8;
     if (keep) {
       const years = clamp(Math.round(rng.normal(age < 28 ? 3 : 2, 1)), 1, league.settings.maxContractYears);
-      const salary = askingSalary(p.overall, league.settings.minSalary, MAX_SALARY);
       newContracts.push({
         id: crypto.randomUUID(), leagueId, playerId: p.id, teamId: c.teamId, salaryPerYear: salary,
         startSeason: next, endSeason: season + years, type: p.overall < 48 ? "minimum" : "standard", option: null,

@@ -112,6 +112,16 @@ export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<str
   });
   for (let i = 0; i < FREE_AGENT_POOL; i++) addPlayer(FREE_AGENT, rng.pick(POSITIONS), -0.5);
 
+  // Starting payrolls fit under the cap: deals for talented teams were signed earlier, for less.
+  const target = settings.salaryCap * 0.98;
+  for (const t of teams) {
+    const mine = contracts.filter((c) => c.teamId === t.id);
+    const total = mine.reduce((n, c) => n + c.salaryPerYear, 0);
+    if (total <= target) continue;
+    const scale = target / total;
+    for (const c of mine) c.salaryPerYear = Math.max(settings.minSalary, Math.round((c.salaryPerYear * scale) / 100) * 100);
+  }
+
   const league: League = {
     id: leagueId, name: o.name.trim() || "我的聯盟", seed: o.seed,
     userTeamId: teams[o.userTeamIndex].id, difficulty: o.difficulty,

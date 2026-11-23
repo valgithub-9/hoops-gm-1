@@ -11,7 +11,7 @@ import { LeagueShell, useLeague } from "./LeagueShell";
 
 // S03
 function Dashboard() {
-  const { league, userTeam, teams, teamById, standings, phaseDone } = useLeague();
+  const { league, userTeam, teams, teamById, standings, phaseDone, problems } = useLeague();
   const events = useEvents(league.id, 6) ?? [];
   const games = useTeamGames(league.id, userTeam.id, league.season) ?? [];
   const payroll = usePayroll(league.id, userTeam.id, league.season) ?? 0;
@@ -37,7 +37,8 @@ function Dashboard() {
     return { abbrev: t.abbrev, name: `${t.city} ${t.name}`, primary: t.colors.primary, score: score ?? 0, record: ts ? `${ts.wins}–${ts.losses}` : undefined };
   };
   const banner =
-    league.phase === "regular" && phaseDone ? { title: `${league.season} 例行賽結束`, body: `你以 ${me.ts.wins}–${me.ts.losses} 作收，${CONFERENCE_NAMES[userTeam.conference]}第 ${me.rank} 名。${me.rank <= league.settings.playoffTeams / 2 ? "打進季後賽了！" : "沒能打進季後賽。"}按右上角「開始季後賽」。`, link: "standings" }
+    problems.length && league.phase !== "draft" ? { title: "還不能開賽", body: `${problems.join("；")}。名單不夠就到自由市場補人，輪替有問題就到輪替頁調整。`, link: problems[0].includes("名單") ? "free-agents" : "rotation" }
+    : league.phase === "regular" && phaseDone ? { title: `${league.season} 例行賽結束`, body: `你以 ${me.ts.wins}–${me.ts.losses} 作收，${CONFERENCE_NAMES[userTeam.conference]}第 ${me.rank} 名。${me.rank <= league.settings.playoffTeams / 2 ? "打進季後賽了！" : "沒能打進季後賽。"}按右上角「開始季後賽」。`, link: "standings" }
     : league.phase === "playoffs" ? { title: phaseDone ? `${league.season} 季後賽結束` : `${league.season} 季後賽進行中`, body: phaseDone ? "看看對戰樹和年度獎項，然後前往選秀。" : "每天每組系列賽打一場，先拿 4 勝的晉級。", link: "playoffs" }
     : league.phase === "draft" ? { title: `${league.season} 選秀`, body: phaseDone ? "選秀結束。按「開始新球季」：球員會成長或老化，合約到期的人會續約或離隊。" : "最差戰績先選。到選秀會場挑新秀。", link: "draft" }
     : null;

@@ -15,6 +15,9 @@ import { PlayoffsPage } from "./pages/league/PlayoffsPage";
 import { DraftPage } from "./pages/league/DraftPage";
 import { AwardsPage } from "./pages/league/AwardsPage";
 import { HistoryPage } from "./pages/league/HistoryPage";
+import { TradePage } from "./pages/league/TradePage";
+import { FreeAgentsPage } from "./pages/league/FreeAgentsPage";
+import { FinancesPage } from "./pages/league/FinancesPage";
 
 const LeagueIndex = () => <Navigate to={`/l/${useParams().leagueId}/team`} replace />;
 
@@ -22,10 +25,7 @@ const LeagueIndex = () => <Navigate to={`/l/${useParams().leagueId}/team`} repla
 const soon: [string, string, string, string][] = [
   ["game/:gameId", "比賽", "S08", "逐球文字轉播。"],
   ["leaders", "數據排行", "S11", "得分、籃板、助攻等聯盟排行。"],
-  ["trade", "交易", "S12", "用球員和選秀權跟電腦球隊談交易。"],
   ["trading-block", "交易市場", "S13", "掛牌球員、接收報價。"],
-  ["free-agents", "自由市場", "S15", "出價簽下自由球員。"],
-  ["finances", "財務", "S16", "薪資總表、上限與奢侈稅。"],
 ];
 
 export function App() {
@@ -47,6 +47,9 @@ export function App() {
       <Route path="/l/:leagueId/draft" element={<DraftPage />} />
       <Route path="/l/:leagueId/awards" element={<AwardsPage />} />
       <Route path="/l/:leagueId/history" element={<HistoryPage />} />
+      <Route path="/l/:leagueId/trade" element={<TradePage />} />
+      <Route path="/l/:leagueId/free-agents" element={<FreeAgentsPage />} />
+      <Route path="/l/:leagueId/finances" element={<FinancesPage />} />
       {soon.map(([path, title, id, about]) => (
         <Route key={path} path={`/l/:leagueId/${path}`} element={<ComingSoon title={title} screen={id} about={about} />} />
       ))}

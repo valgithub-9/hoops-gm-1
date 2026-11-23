@@ -1,5 +1,5 @@
 feature,area,priority,original,clone,notes
-開新聯盟（隊數、接手球隊、難度、種子）,onboarding,must,genre,partial,難度已儲存，等 AI 交易做好才會生效
+開新聯盟（隊數、接手球隊、難度、種子）,onboarding,must,genre,yes,難度決定 AI 交易要求的價值差（輕鬆 0.95、一般 1.05、困難 1.15）
 程序產生原創球隊（虛構城市、隊名、隊色）,league,must,genre,yes,
 程序產生原創球員（姓名、年齡、位置、能力、潛力）,players,must,genre,yes,
 例行賽賽程產生,season,must,genre,yes,循環賽制，每隊每天一場
@@ -15,9 +15,9 @@ Box score 與球員單場數據,game,must,genre,yes,
 球員成長、老化與退休（跨年度）,progression,must,genre,yes,與生成年齡曲線一致；8 季測試聯盟總評不漂移
 存檔（瀏覽器本機）與匯出匯入,platform,must,genre,yes,匯出 JSON、匯入驗證、重複與錯誤檔案拒絕；舊版自動遷移
 桌機可玩、手機寬度可用,platform,must,genre,yes,390px 與 1440px 皆無橫向捲動
-交易（球員與選秀權，AI 評估）,trade,should,genre,no,第二難：球員價值模型
-薪資上限、合約與財務頁,finances,should,genre,partial,合約與薪資空間已有，財務頁和交易規則未做
-自由市場簽約（出價、競價）,free agency,should,genre,no,目前休賽季由系統自動補人（含你的球隊），會寫進收件匣
+交易（球員與選秀權，AI 評估）,trade,should,genre,yes,價值模型考慮年齡、潛力、合約、球隊策略，邊際遞減；會還價；薪資配對與截止日
+薪資上限、合約與財務頁,finances,should,genre,yes,五季薪資表、薪資空間、奢侈稅線、已釋出薪資；超過上限只能簽底薪
+自由市場簽約（出價、競價）,free agency,should,genre,partial,出價、續約、釋出都已完成；還沒有其他球隊同時競價
 選秀樂透,draft,should,genre,no,目前純依戰績倒序
 新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
 逐球文字轉播,game,should,genre,no,
@@ -29,7 +29,7 @@ Box score 與球員單場數據,game,must,genre,yes,
 交易市場與 AI 主動報價,trade,could,genre,no,
 聯盟歷史與名人堂,history,could,genre,partial,歷屆冠軍與自己球隊戰績；名人堂未做
 2D 俯視比賽回放,game,could,genre,no,
-奢侈稅與球隊老闆滿意度,finances,could,genre,no,
+奢侈稅與球隊老闆滿意度,finances,could,genre,no,奢侈稅線已顯示，並限制 AI 續約；還不會實際扣稅
 帳號登入與跨裝置同步,platform,could,genre,no,
 聯盟編輯器（自訂球員、球隊）,league,could,genre,no,
 PWA 離線遊玩,platform,could,genre,no,

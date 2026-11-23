@@ -93,6 +93,7 @@ describe("eight seasons in a row (8 teams, 20 games)", () => {
       expect(roster.length).toBeGreaterThanOrEqual(league.settings.rosterMin);
       expect(roster.length).toBeLessThanOrEqual(league.settings.rosterMax);
       expect(rotationProblems(t.rotation, roster.map((p) => p.id), league.settings.rosterMin)).toEqual([]);
+      if (!t.isUser) expect(payroll(contracts, t.id, league.season)).toBeLessThanOrEqual(league.settings.luxuryTax * 1.1);
       for (const p of roster) {
         expect(contracts.some((c) => c.playerId === p.id && c.teamId === t.id && c.startSeason <= league.season && c.endSeason >= league.season)).toBe(true);
       }

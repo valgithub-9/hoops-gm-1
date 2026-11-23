@@ -84,7 +84,11 @@ export function LeagueShell({ title, children }: { title: string; children: Reac
     : league.phase === "playoffs" ? "季後賽" : league.phase === "draft" ? "選秀" : "休賽季";
 
   let action: ReactNode;
-  if (league.phase === "regular" && !phaseDone) {
+  const rosterShort = problems.some((p) => p.includes("名單"));
+  if (rosterShort && (league.phase === "regular" || league.phase === "playoffs") && !phaseDone) {
+    action = <Button variant="secondary" onClick={() => navigate(`/l/${league.id}/free-agents`)} title={problems[0]}>
+      <UserPlus className="size-4" aria-hidden />補齊名單</Button>;
+  } else if (league.phase === "regular" && !phaseDone) {
     action = <AdvanceMenu busy={busy} progress={progress} onAdvance={onAdvance} onCancel={() => sim.cancel()}
       blockedReason={problems[0]} inHeader />;
   } else if (league.phase === "regular") {
