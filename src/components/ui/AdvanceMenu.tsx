@@ -5,18 +5,30 @@ import { Button } from "./Button";
 const options = [
   { id: "day", label: "推進一天" },
   { id: "week", label: "推進一週" },
-  { id: "deadline", label: "到交易截止日" },
-  { id: "playoffs", label: "到季後賽" },
+  { id: "regularSeasonEnd", label: "到例行賽結束" },
 ] as const;
+export type AdvanceOption = (typeof options)[number]["id"];
 
 // The core action of the game (F02). Blocked state explains why.
-export function AdvanceMenu({ onAdvance, busy, blockedReason }: {
-  onAdvance: (until: (typeof options)[number]["id"]) => void; busy?: boolean; blockedReason?: string;
+export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason, inHeader }: {
+  onAdvance: (until: AdvanceOption) => void; onCancel?: () => void; busy?: boolean; progress?: string; blockedReason?: string;
+  /** In the 56px header there is no room for the reason line: it goes in the tooltip and screen-reader text. */
+  inHeader?: boolean;
 }) {
+  if (busy && onCancel) {
+    return (
+      <div className="flex items-center gap-2">
+        {progress && <span className="num hidden sm:inline text-xs text-text-muted" role="status">{progress}</span>}
+        <Button variant="secondary" loading onClick={onCancel} disabled={false}>模擬中…</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>停止</Button>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="inline-flex">
-        <Button className="rounded-r-none" loading={busy} disabled={!!blockedReason} onClick={() => onAdvance("day")}>
+        <Button className="rounded-r-none" loading={busy} disabled={!!blockedReason} onClick={() => onAdvance("day")}
+          title={blockedReason} aria-describedby={blockedReason ? "advance-blocked" : undefined}>
           {!busy && <Play className="size-4" aria-hidden />}
           {busy ? "模擬中…" : "推進"}
         </Button>
@@ -38,7 +50,9 @@ export function AdvanceMenu({ onAdvance, busy, blockedReason }: {
           </Menu.Portal>
         </Menu.Root>
       </div>
-      {blockedReason && <p className="text-xs text-warning" role="status">{blockedReason}</p>}
+      {blockedReason && (
+        <p id="advance-blocked" className={inHeader ? "sr-only" : "text-xs text-warning"} role="status">{blockedReason}</p>
+      )}
     </div>
   );
 }

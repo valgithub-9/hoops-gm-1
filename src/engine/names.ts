@@ -30,7 +30,7 @@ export const CITIES = [
 ];
 
 export const MASCOTS = [
-  "Anchors", "Badgers", "Bison", "Blizzard", "Comets", "Condors", "Cyclones", "Embers", "Foxes", "Gulls", "Herons",
+  "Anchors", "Badgers", "Bison", "Blizzard", "Kestrels", "Condors", "Cyclones", "Embers", "Foxes", "Gulls", "Herons",
   "Jackrabbits", "Kodiaks", "Lanterns", "Moose", "Mustangs", "Ospreys", "Otters", "Owls", "Pilots", "Quakes", "Ravens",
   "Stags", "Stingrays", "Tide", "Voyagers", "Wolverines", "Yetis", "Ironclads", "Mariners",
 ];

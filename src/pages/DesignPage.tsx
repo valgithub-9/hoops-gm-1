@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { AppShell } from "../components/ui/AppShell";
+import { AppShell, type NavItem } from "../components/ui/AppShell";
+import { LayoutDashboard, Users, CalendarDays, ArrowLeftRight, Trophy, Settings } from "lucide-react";
 import { AdvanceMenu } from "../components/ui/AdvanceMenu";
 import { Badge } from "../components/ui/Badge";
 import { Bracket } from "../components/ui/Bracket";
@@ -19,6 +20,15 @@ import { TeamChip } from "../components/ui/TeamChip";
 import { Toast } from "../components/ui/Toast";
 import { TradePanel } from "../components/ui/TradePanel";
 import tokens from "../../replica/design/tokens.json";
+
+const designNav: NavItem[] = [
+  { to: "/design#dashboard", label: "球隊", icon: LayoutDashboard },
+  { to: "/design#roster", label: "名單", icon: Users },
+  { to: "/design#schedule", label: "賽程", icon: CalendarDays },
+  { to: "/design#trade", label: "交易", icon: ArrowLeftRight },
+  { to: "/design#playoffs", label: "季後賽", icon: Trophy },
+  { to: "/design#settings", label: "設定", icon: Settings },
+];
 
 // Sample data: fictional teams and generated-style names only.
 const roster: PlayerSummary[] = [
@@ -51,7 +61,7 @@ export function DesignPage() {
   const advance = () => { setBusy(true); setTimeout(() => setBusy(false), 1200); };
 
   return (
-    <AppShell title="設計系統" actions={<AdvanceMenu busy={busy} onAdvance={advance} />}>
+    <AppShell title="設計系統" nav={designNav} actions={<AdvanceMenu busy={busy} onAdvance={advance} />}>
       <div className="space-y-8">
         <Section id="colors" title="顏色角色">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -107,7 +117,7 @@ export function DesignPage() {
               home={{ abbrev: "MSA", name: "Mesa Comets", primary: "#f2c14e", score: 104, record: "34–18" }}
               period="第 4 節" clock="2:41" />
             <Scoreboard final
-              away={{ abbrev: "PIN", name: "Pinecrest Lynx", primary: "#3d2c8d", score: 117 }}
+              away={{ abbrev: "PIN", name: "Pinecrest Herons", primary: "#3d2c8d", score: 117 }}
               home={{ abbrev: "MSA", name: "Mesa Comets", primary: "#f2c14e", score: 109 }}
               period="" />
           </div>
