@@ -1,18 +1,18 @@
 import Dexie from "dexie";
 import {
   ACTIVE, FREE_AGENT, LEAGUE_OWNED_TABLES, SCHEMA_VERSION,
-  type Contract, type Game, type League, type LeagueSettings, type Player, type PlayerGameStat,
-  type Team, type TeamSeason, type SaveDb,
+  type Contract, type Game, type League, type LeagueSettings, type Player, type PlayerGameStat, type Team, type SaveDb,
 } from "../db/schema";
 import { CITIES, MASCOTS, TEAM_COLORS } from "../engine/names";
 import { askingSalary, generatePlayer, POSITIONS } from "../engine/players";
 import { makeRng } from "../engine/rng";
-import { makeSchedule } from "../engine/schedule";
-import { autoRotation, simGame, type SimTeam } from "../engine/sim";
+import { autoRotation, simGame } from "../engine/sim";
+import { loadSimTeams, seasonSetup, statRows } from "./season";
 
 export const START_SEASON = 2027;
 export const ROSTER_SIZE = 14;
 export const FREE_AGENT_POOL = 24;
+export const MAX_SALARY = 45000;
 
 export interface NewLeagueOptions {
   name: string;
@@ -54,7 +54,7 @@ export function defaultSettings(numTeams: number, gamesPerSeason: number): Leagu
     minSalary: 1100,
     maxContractYears: 5,
     tradeDeadlineDay: Math.floor(gamesPerSeason * 0.6),
-    playoffTeams: numTeams >= 16 ? 16 : 8,
+    playoffTeams: numTeams >= 16 ? 16 : numTeams >= 8 ? 8 : 4,
     keepPlayByPlaySeasons: 2,
   };
 }
@@ -84,7 +84,7 @@ export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<str
     if (teamId !== FREE_AGENT) {
       contracts.push({
         id: crypto.randomUUID(), leagueId, playerId: p.id, teamId,
-        salaryPerYear: askingSalary(p.overall, settings.minSalary, 45000),
+        salaryPerYear: askingSalary(p.overall, settings.minSalary, MAX_SALARY),
         startSeason: season, endSeason: season + rng.int(0, 3),
         type: p.overall < 48 ? "minimum" : "standard", option: null,
       });
@@ -94,7 +94,9 @@ export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<str
 
   identities.forEach((id, i) => {
     const teamId = crypto.randomUUID();
-    const offset = rng.normal(0, 2.5); // some franchises start stronger than others
+    // +3.5: starts the league at the talent level it settles at once drafts,
+    // growth and retirements take over (measured over ten seasons). Some teams start stronger.
+    const offset = 3.5 + rng.normal(0, 2.5);
     const roster: Player[] = [];
     const positions = [...POSITIONS, ...POSITIONS, ...Array.from({ length: ROSTER_SIZE - 10 }, () => rng.pick(POSITIONS))];
     for (const pos of positions) roster.push(addPlayer(teamId, pos, offset));
@@ -108,34 +110,24 @@ export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<str
       rotation: autoRotation(roster),
     });
   });
-  for (let i = 0; i < FREE_AGENT_POOL; i++) addPlayer(FREE_AGENT, rng.pick(POSITIONS), -4);
+  for (let i = 0; i < FREE_AGENT_POOL; i++) addPlayer(FREE_AGENT, rng.pick(POSITIONS), -0.5);
 
-  const schedule = makeSchedule(o.numTeams, o.gamesPerSeason, makeRng(`${o.seed}:schedule:${season}`));
-  const games: Game[] = schedule.map((g, n) => ({
-    id: crypto.randomUUID(), leagueId, season, day: g.day,
-    homeTeamId: teams[g.home].id, awayTeamId: teams[g.away].id,
-    isPlayoff: 0, seriesId: null, status: "scheduled",
-    seed: `${o.seed}:game:${season}:${n}`,
-    scoreHome: null, scoreAway: null, playByPlay: null,
-  }));
-  const teamSeasons: TeamSeason[] = teams.map((t) => ({
-    id: crypto.randomUUID(), leagueId, teamId: t.id, season,
-    wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, playoffResult: null, playoffRoundReached: null,
-  }));
   const league: League = {
     id: leagueId, name: o.name.trim() || "我的聯盟", seed: o.seed,
     userTeamId: teams[o.userTeamIndex].id, difficulty: o.difficulty,
     season, phase: "regular", day: 0, settings, schemaVersion: SCHEMA_VERSION,
     createdAt: now, updatedAt: now,
   };
+  const setup = seasonSetup(league, season, teams);
 
-  await db.transaction("rw", [db.leagues, db.teams, db.players, db.contracts, db.games, db.teamSeasons], async () => {
+  await db.transaction("rw", [db.leagues, db.teams, db.players, db.contracts, db.games, db.teamSeasons, db.draftPicks], async () => {
     await db.leagues.add(league);
     await db.teams.bulkAdd(teams);
-    await db.players.bulkAdd(players);
+    await db.players.bulkAdd([...players, ...setup.prospects]);
     await db.contracts.bulkAdd(contracts);
-    await db.games.bulkAdd(games);
-    await db.teamSeasons.bulkAdd(teamSeasons);
+    await db.games.bulkAdd(setup.games);
+    await db.teamSeasons.bulkAdd(setup.teamSeasons);
+    await db.draftPicks.bulkAdd(setup.picks);
   });
   return leagueId;
 }
@@ -148,57 +140,36 @@ export async function deleteLeague(db: SaveDb, leagueId: string) {
   });
 }
 
-export type AdvanceUntil = "day" | "week" | "regularSeasonEnd";
-export interface AdvanceResult { daysPlayed: number; gamesPlayed: number; day: number; seasonOver: boolean; ms: number }
+export type AdvanceUntil = "day" | "week" | "phaseEnd";
+export interface AdvanceResult { daysPlayed: number; gamesPlayed: number; day: number; phaseOver: boolean; ms: number }
 
-/** Last day index with games this season, or -1. */
-async function lastDay(db: SaveDb, league: League) {
+/** Last regular-season day index with games, or -1. */
+export async function lastRegularDay(db: SaveDb, league: League) {
   const last = await db.games.where("[leagueId+season+day]")
-    .between([league.id, league.season, Dexie.minKey], [league.id, league.season, Dexie.maxKey]).last();
+    .between([league.id, league.season, Dexie.minKey], [league.id, league.season, Dexie.maxKey])
+    .filter((g) => !g.isPlayoff).last();
   return last ? last.day : -1;
 }
 
 /**
- * Simulates day by day. Each day is one transaction: games, stats, standings
- * and league.day are written together, and only "scheduled" games are
- * simulated, so a repeated or interrupted call never plays a game twice.
+ * Regular season, day by day. Each day is one transaction: games, stats,
+ * standings and league.day are written together, and only "scheduled" games
+ * are simulated, so a repeated or interrupted call never plays a game twice.
  */
-export async function advance(
-  db: SaveDb, leagueId: string, until: AdvanceUntil,
+export async function advanceRegular(
+  db: SaveDb, league: League, until: AdvanceUntil,
   onProgress?: (p: { day: number; lastDay: number }) => void,
   shouldStop?: () => boolean,
 ): Promise<AdvanceResult> {
   const t0 = performance.now();
-  const league = await db.leagues.get(leagueId);
-  if (!league) throw new Error("找不到這個聯盟");
-  const final = await lastDay(db, league);
+  const leagueId = league.id;
+  const final = await lastRegularDay(db, league);
   const start = league.day;
-  if (league.phase !== "regular" || start > final) {
-    return { daysPlayed: 0, gamesPlayed: 0, day: start, seasonOver: true, ms: 0 };
-  }
+  if (start > final) return { daysPlayed: 0, gamesPlayed: 0, day: start, phaseOver: true, ms: 0 };
   const target = until === "day" ? start + 1 : until === "week" ? start + 7 : final + 1;
   const end = Math.min(target, final + 1);
 
-  // Load everything a day needs once; nothing about rosters changes mid-advance in v1.
-  const teams = await db.teams.where("leagueId").equals(leagueId).toArray();
-  const players = await db.players.where("leagueId").equals(leagueId).toArray();
-  const byTeam = new Map<string, Player[]>();
-  for (const p of players) {
-    if (p.teamId === FREE_AGENT || p.retiredSeason !== ACTIVE) continue;
-    (byTeam.get(p.teamId) ?? byTeam.set(p.teamId, []).get(p.teamId)!).push(p);
-  }
-  const simTeams = new Map<string, SimTeam>();
-  for (const t of teams) {
-    const roster = byTeam.get(t.id) ?? [];
-    simTeams.set(t.id, {
-      id: t.id,
-      tactics: t.rotation.tactics,
-      players: roster.map((p) => ({
-        id: p.id, ratings: p.ratings, overall: p.overall,
-        minutes: t.rotation.minutes[p.id] ?? 0, starter: t.rotation.starters.includes(p.id),
-      })),
-    });
-  }
+  const { simTeams } = await loadSimTeams(db, leagueId);
   const standings = new Map(
     (await db.teamSeasons.where("[leagueId+season]").equals([leagueId, league.season]).toArray()).map((s) => [s.teamId, s]),
   );
@@ -210,22 +181,18 @@ export async function advance(
     const finished: Game[] = [];
     const lines: PlayerGameStat[] = [];
     for (const g of todays) {
-      if (g.status !== "scheduled") continue;
+      if (g.status !== "scheduled" || g.isPlayoff) continue;
       const home = simTeams.get(g.homeTeamId)!, away = simTeams.get(g.awayTeamId)!;
       const r = simGame(home, away, g.seed);
-      finished.push({ ...g, status: "final", scoreHome: r.scoreHome, scoreAway: r.scoreAway });
+      const done: Game = { ...g, status: "final", scoreHome: r.scoreHome, scoreAway: r.scoreAway };
+      finished.push(done);
+      lines.push(...statRows(leagueId, league.season, done, home, away, r));
       for (const [team, isHome] of [[home, true], [away, false]] as const) {
         const ts = standings.get(team.id)!;
         const pf = isHome ? r.scoreHome : r.scoreAway, pa = isHome ? r.scoreAway : r.scoreHome;
         ts.pointsFor += pf;
         ts.pointsAgainst += pa;
         if (pf > pa) ts.wins++; else ts.losses++;
-        for (const p of team.players) {
-          const s = r.stats.get(p.id)!;
-          if (s.min === 0) continue;
-          const { oreb: _oreb, ...line } = s;
-          lines.push({ id: crypto.randomUUID(), leagueId, gameId: g.id, season: league.season, playerId: p.id, teamId: team.id, ...line });
-        }
       }
     }
     await db.transaction("rw", [db.games, db.playerGameStats, db.teamSeasons, db.leagues], async () => {
@@ -237,5 +204,5 @@ export async function advance(
     gamesPlayed += finished.length;
     onProgress?.({ day: day + 1, lastDay: final + 1 });
   }
-  return { daysPlayed: day - start, gamesPlayed, day, seasonOver: day > final, ms: Math.round(performance.now() - t0) };
+  return { daysPlayed: day - start, gamesPlayed, day, phaseOver: day > final, ms: Math.round(performance.now() - t0) };
 }

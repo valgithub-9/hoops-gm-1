@@ -43,7 +43,7 @@ export function overall(pos: Position, r: Ratings): number {
 }
 
 /** Age curve: young players are below their talent, veterans decline after 30. */
-const ageShift = (age: number) => (age < 27 ? -(27 - age) * 1.3 : age > 30 ? -(age - 30) * 1.8 : 0);
+export const ageShift = (age: number) => (age < 27 ? -(27 - age) * 1.3 : age > 30 ? -(age - 30) * 1.8 : 0);
 
 export interface NewPlayer {
   firstName: string;
@@ -57,8 +57,8 @@ export interface NewPlayer {
   portraitSeed: string;
 }
 
-export function generatePlayer(rng: Rng, position: Position, talentOffset = 0): NewPlayer {
-  const age = clamp(Math.round(rng.normal(26, 4)), 19, 37);
+export function generatePlayer(rng: Rng, position: Position, talentOffset = 0, fixedAge?: number): NewPlayer {
+  const age = fixedAge ?? clamp(Math.round(rng.normal(26, 4)), 19, 37);
   const talent = rng.normal(50, 8) + talentOffset;
   const base = talent + ageShift(age);
   const ratings = {} as Ratings;

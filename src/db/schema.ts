@@ -20,7 +20,7 @@
  */
 import Dexie, { type Table } from "dexie";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export type Id = string; // UUID
 export type Money = number; // integer, thousands of in-game currency
@@ -199,6 +199,7 @@ export interface PlayerGameStat {
   leagueId: Id;
   gameId: Id;
   season: Season;
+  isPlayoff: Flag; // added in schema v2
   playerId: Id;
   teamId: Id;
   min: number;
@@ -314,7 +315,7 @@ export class SaveDb extends Dexie {
 
   constructor() {
     super("hoops-gm");
-    this.version(SCHEMA_VERSION).stores({
+    this.version(1).stores({
       leagues: "id, updatedAt",
       teams: "id, leagueId, &[leagueId+abbrev]",
       players:
@@ -333,6 +334,10 @@ export class SaveDb extends Dexie {
       awards: "id, leagueId, [leagueId+season], playerId",
       events: "id, leagueId, [leagueId+read], [leagueId+season+day]",
     });
+    // v2: PlayerGameStat.isPlayoff, so regular-season and playoff stats can be split.
+    this.version(2).stores({}).upgrade((tx) =>
+      tx.table("playerGameStats").toCollection().modify((s: PlayerGameStat) => { s.isPlayoff ??= 0; }),
+    );
   }
 }
 

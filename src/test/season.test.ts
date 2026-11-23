@@ -1,7 +1,8 @@
 import "fake-indexeddb/auto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { SaveDb } from "../db/schema";
-import { advance, createLeague, deleteLeague, previewTeams } from "../data/league";
+import { createLeague, deleteLeague, previewTeams } from "../data/league";
+import { advance } from "../data/advance";
 import { simGame, autoRotation, type SimTeam } from "../engine/sim";
 import { generatePlayer, POSITIONS } from "../engine/players";
 import { makeRng } from "../engine/rng";
@@ -19,7 +20,7 @@ beforeAll(async () => {
   leagueId = await createLeague(db, { name: "Test", numTeams: TEAMS, gamesPerSeason: GAMES, userTeamIndex: 0, difficulty: "normal", seed: "test-seed" });
   const day = await advance(db, leagueId, "day");
   expect(day.gamesPlayed).toBe(TEAMS / 2);
-  await advance(db, leagueId, "regularSeasonEnd");
+  await advance(db, leagueId, "phaseEnd");
 }, 60_000);
 
 describe("a small league through a whole season (database)", () => {

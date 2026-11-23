@@ -42,5 +42,8 @@ export const sim = {
   createLeague: (args: NewLeagueOptions) => call<string>({ fn: "createLeague", args }),
   advance: (leagueId: string, until: AdvanceUntil, onProgress?: Pending["onProgress"]) =>
     call<AdvanceResult>({ fn: "advance", args: { leagueId, until } }, onProgress),
+  nextPhase: (leagueId: string) => call<string>({ fn: "nextPhase", args: { leagueId } }),
+  autoDraft: (leagueId: string, mode: "untilUser" | "all") => call<number>({ fn: "autoDraft", args: { leagueId, mode } }),
+  draftPlayer: (leagueId: string, playerId: string) => call<null>({ fn: "draftPlayer", args: { leagueId, playerId } }),
   cancel: () => call<null>({ fn: "cancel" }),
 };
