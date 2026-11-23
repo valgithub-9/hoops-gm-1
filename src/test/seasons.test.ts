@@ -80,6 +80,14 @@ describe("eight seasons in a row (8 teams, 20 games)", () => {
     expect(retired).toBeGreaterThan(0);
   });
 
+  it("archives box scores older than last season but keeps season totals", async () => {
+    const league = (await db.leagues.get(id))!;
+    const lines = await db.playerGameStats.where("leagueId").equals(id).toArray();
+    expect(Math.min(...lines.map((l) => l.season))).toBe(league.season - 1);
+    const totals = await db.playerSeasonStats.where("leagueId").equals(id).toArray();
+    expect(new Set(totals.map((t) => t.season)).size).toBe(8);
+  });
+
   it("does not drift: average overall stays within a few points", () => {
     console.log("avg rostered overall by season", avgOvr.map((x) => x.toFixed(1)).join(" "));
     expect(Math.max(...avgOvr) - Math.min(...avgOvr)).toBeLessThan(5);

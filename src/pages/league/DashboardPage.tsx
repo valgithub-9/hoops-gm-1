@@ -3,14 +3,16 @@ import { Card, Stat } from "../../components/ui/Card";
 import { Scoreboard } from "../../components/ui/Scoreboard";
 import { TeamChip } from "../../components/ui/TeamChip";
 import { money } from "../../components/ui/ContractTag";
-import { usePayroll, useTeamGames } from "../../data/queries";
+import { useEvents, usePayroll, useTeamGames } from "../../data/queries";
+import { InboxItem } from "../../components/ui/Inbox";
 import { CONFERENCE_NAMES, conferenceStandings, fmtPct } from "../../lib/standings";
 import { cn } from "../../lib/cn";
 import { LeagueShell, useLeague } from "./LeagueShell";
 
 // S03
 function Dashboard() {
-  const { league, userTeam, teams, teamById, standings, lastDay } = useLeague();
+  const { league, userTeam, teams, teamById, standings, phaseDone } = useLeague();
+  const events = useEvents(league.id, 6) ?? [];
   const games = useTeamGames(league.id, userTeam.id, league.season) ?? [];
   const payroll = usePayroll(league.id, userTeam.id, league.season) ?? 0;
   const conf = conferenceStandings(teams, standings, userTeam.conference);
@@ -34,20 +36,22 @@ function Dashboard() {
     const ts = standings.find((s) => s.teamId === teamId);
     return { abbrev: t.abbrev, name: `${t.city} ${t.name}`, primary: t.colors.primary, score: score ?? 0, record: ts ? `${ts.wins}–${ts.losses}` : undefined };
   };
-  const seasonOver = league.day >= lastDay;
+  const banner =
+    league.phase === "regular" && phaseDone ? { title: `${league.season} 例行賽結束`, body: `你以 ${me.ts.wins}–${me.ts.losses} 作收，${CONFERENCE_NAMES[userTeam.conference]}第 ${me.rank} 名。${me.rank <= league.settings.playoffTeams / 2 ? "打進季後賽了！" : "沒能打進季後賽。"}按右上角「開始季後賽」。`, link: "standings" }
+    : league.phase === "playoffs" ? { title: phaseDone ? `${league.season} 季後賽結束` : `${league.season} 季後賽進行中`, body: phaseDone ? "看看對戰樹和年度獎項，然後前往選秀。" : "每天每組系列賽打一場，先拿 4 勝的晉級。", link: "playoffs" }
+    : league.phase === "draft" ? { title: `${league.season} 選秀`, body: phaseDone ? "選秀結束。按「開始新球季」：球員會成長或老化，合約到期的人會續約或離隊。" : "最差戰績先選。到選秀會場挑新秀。", link: "draft" }
+    : null;
 
   return (
     <div className="space-y-6">
-      {seasonOver && (
-        <div className="rounded-lg border border-accent/40 bg-accent/10 p-4" role="status">
-          <div className="font-display uppercase text-accent-text">{league.season} 例行賽結束</div>
-          <p className="text-sm text-text-muted mt-1">
-            你以 {me.ts.wins}–{me.ts.losses} 作收，{CONFERENCE_NAMES[userTeam.conference]}第 {me.rank} 名。季後賽、選秀和休賽季會在下個版本加入。
-          </p>
-        </div>
+      {banner && (
+        <Link to={`/l/${league.id}/${banner.link}`} className="block rounded-lg border border-accent/40 bg-accent/10 p-4 hover:bg-accent/15" >
+          <div className="font-display uppercase text-accent-text">{banner.title}</div>
+          <p className="text-sm text-text-muted mt-1">{banner.body}</p>
+        </Link>
       )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="戰績" value={`${me.ts.wins}–${me.ts.losses}`} sub={`${CONFERENCE_NAMES[userTeam.conference]}第 ${me.rank} 名`} />
+        <Stat label="戰績" value={`${me.ts.wins}–${me.ts.losses}`} sub={me.ts.wins + me.ts.losses ? `${CONFERENCE_NAMES[userTeam.conference]}第 ${me.rank} 名` : `${league.season} 球季還沒開打`} />
         <Stat label="連續" value={streak} tone={streak.startsWith("W") ? "success" : streak.startsWith("L") ? "danger" : undefined} />
         <Stat label="薪資空間" value={`${space < 0 ? "-" : ""}${money(Math.abs(space))}`} tone={space < 0 ? "danger" : undefined}
           sub={`總薪資 ${money(payroll)} / 上限 ${money(league.settings.salaryCap)}`} />
@@ -70,6 +74,16 @@ function Dashboard() {
           )}
         </Card>
 
+        <div className="space-y-6">
+        <Card title="收件匣">
+          {events.length === 0 ? <p className="text-text-muted text-sm">沒有新消息。</p> : (
+            <div className="-mx-3">
+              {events.map((e) => (
+                <InboxItem key={e.id} e={{ id: e.id, kind: e.type, title: String(e.payload.text ?? ""), when: `${e.season} 第 ${e.day + 1} 天`, unread: e.season === league.season && e.day >= league.day - 1 }} />
+              ))}
+            </div>
+          )}
+        </Card>
         <Card title={`${CONFERENCE_NAMES[userTeam.conference]}排名`} action={<Link to={`/l/${league.id}/standings`} className="text-xs text-accent-text hover:underline">全部</Link>}>
           <ol className="-mx-2">
             {conf.slice(0, 8).map((r) => (
@@ -83,6 +97,7 @@ function Dashboard() {
             ))}
           </ol>
         </Card>
+        </div>
       </div>
     </div>
   );

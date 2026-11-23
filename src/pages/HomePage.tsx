@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Trash2, Play } from "lucide-react";
+import { useRef, useState } from "react";
+import { Download, Plus, Trash2, Play, Upload } from "lucide-react";
+import { exportLeague, importLeague } from "../data/saveFile";
 import { Button } from "../components/ui/Button";
 import { Modal, ModalClose } from "../components/ui/Modal";
 import { TeamChip } from "../components/ui/TeamChip";
@@ -13,6 +15,29 @@ const when = (iso: string) => new Date(iso).toLocaleString("zh-TW", { dateStyle:
 export function HomePage() {
   const saves = useLeagues();
   const navigate = useNavigate();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string }>();
+  const download = async (id: string, name: string) => {
+    const file = await exportLeague(db, id);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/[\\/:*?"<>|]/g, "_")}-${file.league.season}.hoopsgm.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const upload = async (f: File | undefined) => {
+    if (!f) return;
+    try {
+      const id = await importLeague(db, await f.text());
+      setMsg({ tone: "ok", text: "匯入成功。" });
+      navigate(`/l/${id}/team`);
+    } catch (e) {
+      setMsg({ tone: "err", text: `匯入失敗：${e instanceof Error ? e.message : String(e)}` });
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
   return (
     <div className="min-h-dvh px-4 py-8">
       <div className="mx-auto max-w-[720px] space-y-8">
@@ -24,7 +49,12 @@ export function HomePage() {
         </header>
 
         <section aria-labelledby="saves-h" className="space-y-3">
-          <h2 id="saves-h" className="font-display text-lg uppercase tracking-wide border-b border-border pb-2">存檔</h2>
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <h2 id="saves-h" className="font-display text-lg uppercase tracking-wide">存檔</h2>
+            <Button size="sm" variant="secondary" onClick={() => fileInput.current?.click()}><Upload className="size-4" aria-hidden />匯入存檔</Button>
+            <input ref={fileInput} type="file" accept=".json,application/json" className="sr-only" aria-label="選擇存檔檔案" onChange={(e) => upload(e.target.files?.[0])} />
+          </div>
+          {msg && <p className={msg.tone === "ok" ? "text-sm text-success" : "text-sm text-danger"} role={msg.tone === "err" ? "alert" : "status"}>{msg.text}</p>}
           {saves === undefined ? (
             <div className="space-y-2" aria-busy>{[0, 1].map((i) => <div key={i} className="h-[72px] rounded-lg bg-surface animate-pulse" />)}</div>
           ) : saves.length === 0 ? (
@@ -43,6 +73,9 @@ export function HomePage() {
                   <Button size="sm" variant="secondary" onClick={() => navigate(`/l/${league.id}/team`)} aria-label={`繼續 ${league.name}`}>
                     <Play className="size-3" aria-hidden />繼續
                   </Button>
+                  <Button size="sm" variant="ghost" onClick={() => download(league.id, league.name)} aria-label={`匯出 ${league.name}`} title="匯出存檔">
+                    <Download className="size-4" aria-hidden />
+                  </Button>
                   <Modal
                     trigger={<Button size="sm" variant="ghost" aria-label={`刪除 ${league.name}`}><Trash2 className="size-4" aria-hidden /></Button>}
                     title="刪除這份存檔？"
@@ -57,7 +90,7 @@ export function HomePage() {
             </ul>
           )}
         </section>
-        <p className="text-center text-xs text-text-subtle">存檔只存在這個瀏覽器裡。所有球隊與球員皆為虛構。 · <Link to="/design" className="underline">設計系統</Link></p>
+        <p className="text-center text-xs text-text-subtle">存檔只存在這個瀏覽器裡，換電腦前請先匯出。所有球隊與球員皆為虛構。 · <Link to="/design" className="underline">設計系統</Link></p>
       </div>
     </div>
   );

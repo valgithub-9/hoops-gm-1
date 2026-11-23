@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Badge } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { ContractTag } from "../../components/ui/ContractTag";
@@ -17,7 +18,7 @@ function Roster() {
     { key: "name", header: "球員", sticky: true, sortValue: (r) => r.player.lastName,
       cell: (r) => (
         <span className="flex items-center gap-2">
-          <span className="font-medium max-w-[180px] truncate">{r.player.firstName} {r.player.lastName}</span>
+          <Link to={`/l/${league.id}/player/${r.player.id}`} className="font-medium max-w-[180px] truncate hover:text-accent-text">{r.player.firstName} {r.player.lastName}</Link>
           {r.starter && <Badge tone="accent">先發</Badge>}
         </span>
       ) },
@@ -36,10 +37,10 @@ function Roster() {
   if (!rows) return <div className="h-[400px] rounded-lg bg-surface animate-pulse" aria-busy aria-label="載入名單中" />;
   return (
     <div className="space-y-4">
-      <p className="text-sm text-text-muted">{rows.length} 人 · 輪替由系統依總評自動安排，手動調整會在之後的版本加入。</p>
+      <p className="text-sm text-text-muted">{rows.length} 人 · 數據為本季例行賽場均 · <Link to={`/l/${league.id}/rotation`} className="text-accent-text hover:underline">調整輪替</Link></p>
       <DataTable caption={`${userTeam.city} ${userTeam.name} 名單`} rows={rows} columns={cols} rowKey={(r) => r.player.id}
         initialSort={{ key: "min", dir: "desc" }} empty="名單是空的。" />
-      <Card><p className="text-xs text-text-subtle">總評會在球員資料頁拆成各項能力；潛力只會顯示球探估計的區間。</p></Card>
+      <Card><p className="text-xs text-text-subtle">點球員名字看各項能力、生涯數據和球探估計的潛力區間。</p></Card>
     </div>
   );
 }

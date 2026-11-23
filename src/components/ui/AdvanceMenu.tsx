@@ -2,16 +2,17 @@ import * as Menu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, FastForward, Play } from "lucide-react";
 import { Button } from "./Button";
 
-const options = [
+export type AdvanceOption = "day" | "week" | "phaseEnd";
+const DEFAULT_OPTIONS: { id: AdvanceOption; label: string }[] = [
   { id: "day", label: "推進一天" },
   { id: "week", label: "推進一週" },
-  { id: "regularSeasonEnd", label: "到例行賽結束" },
-] as const;
-export type AdvanceOption = (typeof options)[number]["id"];
+  { id: "phaseEnd", label: "到例行賽結束" },
+];
 
 // The core action of the game (F02). Blocked state explains why.
-export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason, inHeader }: {
+export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason, inHeader, options = DEFAULT_OPTIONS }: {
   onAdvance: (until: AdvanceOption) => void; onCancel?: () => void; busy?: boolean; progress?: string; blockedReason?: string;
+  options?: { id: AdvanceOption; label: string }[];
   /** In the 56px header there is no room for the reason line: it goes in the tooltip and screen-reader text. */
   inHeader?: boolean;
 }) {
@@ -27,7 +28,7 @@ export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="inline-flex">
-        <Button className="rounded-r-none" loading={busy} disabled={!!blockedReason} onClick={() => onAdvance("day")}
+        <Button className="rounded-r-none" loading={busy} disabled={!!blockedReason} onClick={() => onAdvance(options[0].id)}
           title={blockedReason} aria-describedby={blockedReason ? "advance-blocked" : undefined}>
           {!busy && <Play className="size-4" aria-hidden />}
           {busy ? "模擬中…" : "推進"}

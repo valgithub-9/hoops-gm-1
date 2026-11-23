@@ -152,9 +152,12 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
 
   // 5. Next season.
   const setup = seasonSetup(league, next, newTeams);
+  // Box scores are kept for the last `keepPlayByPlaySeasons` seasons; older ones live on as season totals.
+  const dropBefore = next - league.settings.keepPlayByPlaySeasons + 1;
   await db.transaction("rw",
-    [db.leagues, db.teams, db.players, db.contracts, db.ratingHistory, db.games, db.teamSeasons, db.draftPicks, db.events],
+    [db.leagues, db.teams, db.players, db.contracts, db.ratingHistory, db.games, db.teamSeasons, db.draftPicks, db.events, db.playerGameStats],
     async () => {
+      await db.playerGameStats.where("[leagueId+season]").between([leagueId, 0], [leagueId, dropBefore], true, false).delete();
       await db.ratingHistory.bulkAdd(history);
       await db.players.bulkPut([...players.values(), ...setup.prospects]);
       await db.contracts.bulkPut([...endedContracts, ...newContracts]);

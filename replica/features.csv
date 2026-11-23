@@ -3,31 +3,31 @@ feature,area,priority,original,clone,notes
 程序產生原創球隊（虛構城市、隊名、隊色）,league,must,genre,yes,
 程序產生原創球員（姓名、年齡、位置、能力、潛力）,players,must,genre,yes,
 例行賽賽程產生,season,must,genre,yes,循環賽制，每隊每天一場
-推進賽季（一天、一週、到下個階段）,season,must,genre,partial,一天、一週、到例行賽結束；還沒有「到交易截止日」和事件暫停
+推進賽季（一天、一週、到下個階段）,season,must,genre,partial,一天、一週、到階段結束與換階段；還沒有「到交易截止日」和事件暫停
 比賽模擬引擎（能力、輪替影響結果，可用 seed 重現）,game,must,genre,partial,回合制、可重現；上場名單依分鐘加權，尚未追蹤場上五人、體力、犯滿
 Box score 與球員單場數據,game,must,genre,yes,
 聯盟排名,season,must,genre,yes,
 球隊名單（能力、合約、傷病）,roster,must,genre,partial,能力、合約、本季平均；傷病系統未做
-球員資料頁（能力、數據、合約）,roster,must,genre,no,
-輪替與上場時間設定,roster,must,genre,no,目前依總評自動排；手動調整在 S06
-季後賽與冠軍,season,must,genre,no,
-選秀（新秀產生、順位、選人、AI 選秀）,draft,must,genre,no,
-球員成長、老化與退休（跨年度）,progression,must,genre,no,
-存檔（瀏覽器本機）與匯出匯入,platform,must,genre,partial,本機存檔、刪除、多分頁鎖已完成；匯出匯入未做
+球員資料頁（能力、數據、合約）,roster,must,genre,yes,能力（含與去年比較）、球探潛力區間、生涯數據、合約、獎項
+輪替與上場時間設定,roster,must,genre,yes,先發勾選、分鐘數（總和 240 才能存）、自動排；拖放未做
+季後賽與冠軍,season,must,genre,yes,每區前 N 名、七戰四勝、種子主場
+選秀（新秀產生、順位、選人、AI 選秀）,draft,must,genre,yes,依戰績倒序；樂透另列
+球員成長、老化與退休（跨年度）,progression,must,genre,yes,與生成年齡曲線一致；8 季測試聯盟總評不漂移
+存檔（瀏覽器本機）與匯出匯入,platform,must,genre,yes,匯出 JSON、匯入驗證、重複與錯誤檔案拒絕；舊版自動遷移
 桌機可玩、手機寬度可用,platform,must,genre,yes,390px 與 1440px 皆無橫向捲動
 交易（球員與選秀權，AI 評估）,trade,should,genre,no,第二難：球員價值模型
 薪資上限、合約與財務頁,finances,should,genre,partial,合約與薪資空間已有，財務頁和交易規則未做
-自由市場簽約（出價、競價）,free agency,should,genre,no,
-選秀樂透,draft,should,genre,no,
-新秀球探報告（潛力只顯示估計）,draft,should,genre,no,
+自由市場簽約（出價、競價）,free agency,should,genre,no,目前休賽季由系統自動補人（含你的球隊），會寫進收件匣
+選秀樂透,draft,should,genre,no,目前純依戰績倒序
+新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
 逐球文字轉播,game,should,genre,no,
 戰術傾向（節奏、三分、內線、防守）,roster,should,genre,no,
 傷病系統,players,should,genre,no,
 數據排行,season,should,genre,no,
-賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,no,
-通知收件匣（傷病、報價、合約）,platform,should,genre,no,
+賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,yes,MVP、DPOY、ROY、第六人、總冠軍賽 MVP、年度一二隊
+通知收件匣（傷病、報價、合約）,platform,should,genre,partial,續約、離隊、退休、選秀、冠軍；交易報價與傷病未做
 交易市場與 AI 主動報價,trade,could,genre,no,
-聯盟歷史與名人堂,history,could,genre,no,
+聯盟歷史與名人堂,history,could,genre,partial,歷屆冠軍與自己球隊戰績；名人堂未做
 2D 俯視比賽回放,game,could,genre,no,
 奢侈稅與球隊老闆滿意度,finances,could,genre,no,
 帳號登入與跨裝置同步,platform,could,genre,no,
