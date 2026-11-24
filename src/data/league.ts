@@ -8,6 +8,7 @@ import { askingSalary, generatePlayer, POSITIONS } from "../engine/players";
 import { makeRng } from "../engine/rng";
 import { autoRotation, simGame } from "../engine/sim";
 import { applyInjuries, injuryEvents, loadSimTeams, seasonSetup, statRows } from "./season";
+import { tr } from "../i18n";
 
 export const START_SEASON = 2027;
 export const ROSTER_SIZE = 14;
@@ -60,7 +61,7 @@ export function defaultSettings(numTeams: number, gamesPerSeason: number): Leagu
 }
 
 export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<string> {
-  if (o.numTeams % 2 !== 0 || o.numTeams < 4 || o.numTeams > CITIES.length) throw new Error("隊數必須是 4 到 30 之間的偶數");
+  if (o.numTeams % 2 !== 0 || o.numTeams < 4 || o.numTeams > CITIES.length) throw new Error(tr("隊數必須是 4 到 30 之間的偶數", "Number of teams must be an even number from 4 to 30"));
   const rng = makeRng(`${o.seed}:players`);
   const settings = defaultSettings(o.numTeams, o.gamesPerSeason);
   const now = new Date().toISOString();
@@ -123,7 +124,7 @@ export async function createLeague(db: SaveDb, o: NewLeagueOptions): Promise<str
   }
 
   const league: League = {
-    id: leagueId, name: o.name.trim() || "我的聯盟", seed: o.seed,
+    id: leagueId, name: o.name.trim() || tr("我的聯盟", "My League"), seed: o.seed,
     userTeamId: teams[o.userTeamIndex].id, difficulty: o.difficulty,
     season, phase: "regular", day: 0, settings, schemaVersion: SCHEMA_VERSION,
     createdAt: now, updatedAt: now,
@@ -187,7 +188,7 @@ export async function advanceRegular(
   let paused: AdvanceResult["paused"];
   if (start < deadline && end > deadline) {
     end = deadline;
-    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。` };
+    paused = { reason: "deadline", message: tr(`今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。`, `Today is the trade deadline (day ${deadline + 1}). After today, no trades until the playoffs are over.`) };
   }
 
   const { simTeams, playerById } = await loadSimTeams(db, leagueId);
@@ -238,7 +239,7 @@ export async function advanceRegular(
   }
   if (eventPause) paused = { reason: "event", message: eventPause };
   else if (until === "deadline" && day === deadline) {
-    paused = { reason: "deadline", message: `今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。` };
+    paused = { reason: "deadline", message: tr(`今天是交易截止日（第 ${deadline + 1} 天）。過了今天就不能交易，直到季後賽結束。`, `Today is the trade deadline (day ${deadline + 1}). After today, no trades until the playoffs are over.`) };
   }
   else if (paused && day < deadline) paused = undefined; // stopped early for another reason
   return { daysPlayed: day - start, gamesPlayed, day, phaseOver: day > final, ms: Math.round(performance.now() - t0), paused };

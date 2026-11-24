@@ -1,5 +1,6 @@
 import type { AdvanceResult, AdvanceUntil, NewLeagueOptions } from "../data/league";
 import type { WorkerMessage, WorkerRequest } from "./sim.worker";
+import { lang } from "../i18n";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; onProgress?: (p: { day: number; lastDay: number }) => void };
 
@@ -34,7 +35,7 @@ function call<T>(req: Req, onProgress?: Pending["onProgress"]): Promise<T> {
   const id = nextId++;
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, onProgress });
-    getWorker().postMessage({ ...req, id });
+    getWorker().postMessage({ ...req, id, lang: lang() });
   });
 }
 

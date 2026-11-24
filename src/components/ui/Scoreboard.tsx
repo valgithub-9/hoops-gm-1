@@ -1,5 +1,6 @@
 import { TeamChip } from "./TeamChip";
 import { cn } from "../../lib/cn";
+import { tr } from "../../i18n";
 
 type Side = { abbrev: string; name: string; primary: string; score: number; record?: string };
 
@@ -28,13 +29,13 @@ export function Scoreboard({ home, away, period, clock, final, compact }: {
     </div>
   );
   return (
-    <div className="rounded-lg border border-border bg-scoreboard-bg p-4 shadow-card" role="group" aria-label={`${away.name} ${away.score}，${home.name} ${home.score}，${final ? "終場" : period}`}>
+    <div className="rounded-lg border border-border bg-scoreboard-bg p-4 shadow-card" role="group" aria-label={`${away.name} ${away.score}, ${home.name} ${home.score}, ${final ? tr("終場", "final") : period}`}>
       <div className="flex flex-col gap-3">
         {row(away, "away")}
         {row(home, "home")}
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs uppercase tracking-wider">
-        <span className={cn("font-mono font-bold", final ? "text-text-muted" : "text-accent-text")}>{final ? "終場 FINAL" : period}</span>
+        <span className={cn("font-mono font-bold", final ? "text-text-muted" : "text-accent-text")}>{final ? tr("終場 FINAL", "FINAL") : period}</span>
         {clock && !final && <span className="num font-mono text-scoreboard">{clock}</span>}
       </div>
     </div>

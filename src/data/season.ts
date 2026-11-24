@@ -6,6 +6,7 @@ import { generatePlayer, POSITIONS } from "../engine/players";
 import { makeRng, type Rng } from "../engine/rng";
 import { makeSchedule } from "../engine/schedule";
 import type { GameResult, SimTeam } from "../engine/sim";
+import { tr } from "../i18n";
 
 /** Everything a new season needs: schedule, standings rows, draft picks and the draft class. */
 export function seasonSetup(league: Pick<League, "id" | "seed" | "settings">, season: number, teams: Team[], existingPicks: DraftPick[] = []) {
@@ -110,7 +111,8 @@ export function injuryEvents(league: Pick<League, "id" | "season" | "day" | "use
     const p = players.get(i.playerId)!;
     const sp = team.players.find((x) => x.id === i.playerId)!;
     const serious = i.gamesOut >= 5 && sp.minutes >= 10;
-    const text = `${fullName(p)} ${i.type}，預計缺席 ${i.gamesOut} 場。${serious ? "他的上場時間會先分給隊友，可以到「輪替」調整。" : ""}`;
+    const text = tr(`${fullName(p)} ${i.type}，預計缺席 ${i.gamesOut} 場。${serious ? "他的上場時間會先分給隊友，可以到「輪替」調整。" : ""}`,
+      `${fullName(p)}: ${i.type.toLowerCase()}, out about ${i.gamesOut} games.${serious ? " His minutes go to teammates for now; adjust in Rotation." : ""}`);
     events.push(newEvent(league, "injury", { text, playerId: p.id }, serious));
     if (serious && !pause) pause = text;
   }

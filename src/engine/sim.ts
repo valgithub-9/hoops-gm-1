@@ -1,5 +1,6 @@
 import type { Position, Ratings } from "../db/schema";
 import { clamp, makeRng, type Rng } from "./rng";
+import { tr } from "../i18n";
 
 /**
  * Possession-by-possession game simulation, v2.
@@ -53,16 +54,16 @@ const REGULATION = QUARTER * 4;
 const OVERTIME = 300;
 const FOUL_LIMIT = 6;
 
-const INJURIES: { type: string; min: number; max: number; weight: number }[] = [
-  { type: "腳踝扭傷", min: 1, max: 6, weight: 30 },
-  { type: "背部痙攣", min: 1, max: 4, weight: 15 },
-  { type: "手指脫臼", min: 1, max: 5, weight: 10 },
-  { type: "膝蓋挫傷", min: 2, max: 8, weight: 15 },
-  { type: "腿後肌拉傷", min: 4, max: 14, weight: 12 },
-  { type: "腦震盪", min: 3, max: 10, weight: 6 },
-  { type: "肩膀拉傷", min: 5, max: 18, weight: 6 },
-  { type: "足部骨折", min: 20, max: 45, weight: 4 },
-  { type: "膝蓋韌帶撕裂", min: 40, max: 70, weight: 2 },
+const INJURIES: { type: string; en: string; min: number; max: number; weight: number }[] = [
+  { type: "腳踝扭傷", en: "Sprained ankle", min: 1, max: 6, weight: 30 },
+  { type: "背部痙攣", en: "Back spasms", min: 1, max: 4, weight: 15 },
+  { type: "手指脫臼", en: "Dislocated finger", min: 1, max: 5, weight: 10 },
+  { type: "膝蓋挫傷", en: "Bruised knee", min: 2, max: 8, weight: 15 },
+  { type: "腿後肌拉傷", en: "Strained hamstring", min: 4, max: 14, weight: 12 },
+  { type: "腦震盪", en: "Concussion", min: 3, max: 10, weight: 6 },
+  { type: "肩膀拉傷", en: "Strained shoulder", min: 5, max: 18, weight: 6 },
+  { type: "足部骨折", en: "Broken foot", min: 20, max: 45, weight: 4 },
+  { type: "膝蓋韌帶撕裂", en: "Torn knee ligament", min: 40, max: 70, weight: 2 },
 ];
 
 const emptyLine = (): StatLine => ({
@@ -171,7 +172,7 @@ function pick(rng: Rng, from: PS[], weight: (s: PS) => number, exclude?: PS): PS
 function injure(rng: Rng, s: PS, side: Side, out: InjuryEvent[]) {
   const kind = rng.weighted(INJURIES, (i) => i.weight);
   s.out = true;
-  out.push({ playerId: s.p.id, teamId: side.team.id, gamesOut: rng.int(kind.min, kind.max), type: kind.type });
+  out.push({ playerId: s.p.id, teamId: side.team.id, gamesOut: rng.int(kind.min, kind.max), type: tr(kind.type, kind.en) });
 }
 
 function possession(rng: Rng, off: Side, def: Side, injuries: InjuryEvent[], fouledOut: string[]): number {

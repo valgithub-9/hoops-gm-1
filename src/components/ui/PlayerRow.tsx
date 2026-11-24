@@ -2,6 +2,7 @@ import { HeartCrack } from "lucide-react";
 import { Ovr } from "./RatingBar";
 import { ContractTag } from "./ContractTag";
 import { Badge } from "./Badge";
+import { tr } from "../../i18n";
 
 export type PlayerSummary = {
   id: string; name: string; pos: string; age: number; ovr: number;
@@ -14,9 +15,9 @@ export function PlayerRow({ p, compact }: { p: PlayerSummary; compact?: boolean 
       <Ovr value={p.ovr} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium text-text">{p.name}</div>
-        <div className="text-xs text-text-muted">{p.pos} · {p.age} 歲</div>
+        <div className="text-xs text-text-muted">{p.pos} · {tr(`${p.age} 歲`, `age ${p.age}`)}</div>
       </div>
-      {p.injuredGames ? <Badge tone="danger" icon={<HeartCrack className="size-3" aria-hidden />}>傷 {p.injuredGames} 場</Badge> : null}
+      {p.injuredGames ? <Badge tone="danger" icon={<HeartCrack className="size-3" aria-hidden />}>{tr(`傷 ${p.injuredGames} 場`, `out ${p.injuredGames}`)}</Badge> : null}
       {!compact && <ContractTag salary={p.salary} years={p.years} expiring={p.expiring} />}
     </div>
   );

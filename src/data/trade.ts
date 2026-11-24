@@ -7,6 +7,10 @@ import { MARGIN, packageValue, pickValue, playerValue, projectPick, type Strateg
 import { currentContract, fmtMoney, payroll, tradeSideProblems, tradeWindow } from "../rules/cap";
 import { MAX_SALARY } from "./league";
 import { fullName, newEvent } from "./season";
+import { tr } from "../i18n";
+
+/** The "nothing selected yet" problem, which the trade screen hides. */
+export const NOTHING_SELECTED = () => tr("還沒有選任何球員或選秀權", "No players or picks selected yet");
 
 export interface TradeOffer {
   partnerId: string;
@@ -69,12 +73,15 @@ export const strategyOf = (ctx: TradeContext, teamId: string): Strategy => (winP
 export function assetLabel(ctx: TradeContext, a: TradeAsset): string {
   if (a.kind === "player") {
     const p = ctx.players.get(a.playerId);
-    return p ? `${fullName(p)}（${p.position}, ${p.overall}）` : "未知球員";
+    return p ? `${fullName(p)} (${p.position}, ${p.overall})` : tr("未知球員", "Unknown player");
   }
   const pk = ctx.picks.get(a.pickId);
-  if (!pk) return "未知選秀權";
+  if (!pk) return tr("未知選秀權", "Unknown pick");
   const orig = ctx.teams.get(pk.originalTeamId)!;
-  return `${pk.season} ${pk.round === 1 ? "首輪" : "次輪"}籤${pk.ownerTeamId !== pk.originalTeamId ? `（原屬 ${orig.abbrev}）` : `（${orig.abbrev}）`}${pk.pickNo ? ` 第 ${pk.pickNo} 順位` : ""}`;
+  return tr(
+    `${pk.season} ${pk.round === 1 ? "首輪" : "次輪"}籤${pk.ownerTeamId !== pk.originalTeamId ? `（原屬 ${orig.abbrev}）` : `（${orig.abbrev}）`}${pk.pickNo ? ` 第 ${pk.pickNo} 順位` : ""}`,
+    `${pk.season} ${pk.round === 1 ? "1st" : "2nd"}-round pick (${pk.ownerTeamId !== pk.originalTeamId ? `via ${orig.abbrev}` : orig.abbrev})${pk.pickNo ? ` #${pk.pickNo}` : ""}`,
+  );
 }
 
 export function assetSalary(ctx: TradeContext, a: TradeAsset): number {
@@ -106,12 +113,12 @@ export function tradeProblems(ctx: TradeContext, offer: TradeOffer): string[] {
   const window = tradeWindow(league);
   if (window) out.push(window);
   const userId = league.userTeamId;
-  if (offer.partnerId === userId || !ctx.teams.has(offer.partnerId)) out.push("請選擇交易對象");
-  if (offer.give.length === 0 && offer.get.length === 0) out.push("還沒有選任何球員或選秀權");
+  if (offer.partnerId === userId || !ctx.teams.has(offer.partnerId)) out.push(tr("請選擇交易對象", "Choose a team to trade with"));
+  if (offer.give.length === 0 && offer.get.length === 0) out.push(NOTHING_SELECTED());
   const owns = (a: TradeAsset, teamId: string) =>
     a.kind === "player" ? ctx.players.get(a.playerId)?.teamId === teamId
       : (() => { const p = ctx.picks.get(a.pickId); return !!p && p.ownerTeamId === teamId && !p.playerId && p.season >= league.season; })();
-  if (!offer.give.every((a) => owns(a, userId)) || !offer.get.every((a) => owns(a, offer.partnerId))) out.push("有球員或選秀權已經不屬於這支球隊了");
+  if (!offer.give.every((a) => owns(a, userId)) || !offer.get.every((a) => owns(a, offer.partnerId))) out.push(tr("有球員或選秀權已經不屬於這支球隊了", "A player or pick in this deal no longer belongs to that team"));
   if (out.length) return out;
 
   const season = capSeason(league);
@@ -122,7 +129,7 @@ export function tradeProblems(ctx: TradeContext, offer: TradeOffer): string[] {
   out.push(...tradeSideProblems({
     teamId: userId, payrollBefore: payroll(ctx.contracts, userId, season), outgoing: salary(offer.give), incoming: salary(offer.get),
     rosterBefore: rosterOf(userId), playersOut: count(offer.give), playersIn: count(offer.get),
-  }, league, true, "你的球隊"));
+  }, league, true, tr("你的球隊", "Your team")));
   out.push(...tradeSideProblems({
     teamId: partner.id, payrollBefore: payroll(ctx.contracts, partner.id, season), outgoing: salary(offer.get), incoming: salary(offer.give),
     rosterBefore: rosterOf(partner.id), playersOut: count(offer.get), playersIn: count(offer.give),
@@ -149,9 +156,11 @@ export function evaluateTrade(ctx: TradeContext, offer: TradeOffer): TradeVerdic
   const need = Math.max(1, giveUp * margin);
   const got = receive(offer.give);
   const ratio = got / need;
-  const style = strategy === "rebuilding" ? "我們在重建，比較看重年輕球員和選秀權。" : "我們在拚冠軍，要能馬上上場幫忙的人。";
+  const style = strategy === "rebuilding"
+    ? tr("我們在重建，比較看重年輕球員和選秀權。", "We are rebuilding, so we value young players and picks.")
+    : tr("我們在拚冠軍，要能馬上上場幫忙的人。", "We are chasing a title and want players who help right now.");
 
-  if (got >= need) return { decision: "accept", ratio, reason: giveUp === 0 ? "白送的我們收下。" : `成交。${style}` };
+  if (got >= need) return { decision: "accept", ratio, reason: giveUp === 0 ? tr("白送的我們收下。", "We'll take a free gift.") : tr(`成交。${style}`, `Deal. ${style}`) };
 
   if (ratio >= 0.7) {
     // Ask for the cheapest extra asset that closes the gap and keeps the trade legal.
@@ -167,12 +176,12 @@ export function evaluateTrade(ctx: TradeContext, offer: TradeOffer): TradeVerdic
     for (const { a } of candidates) {
       const next: TradeOffer = { ...offer, give: [...offer.give, a] };
       if (receive(next.give) >= need && tradeProblems(ctx, next).length === 0) {
-        return { decision: "counter", ratio, counter: next, reason: `差一點。再加上 ${assetLabel(ctx, a)} 就成交。${style}` };
+        return { decision: "counter", ratio, counter: next, reason: tr(`差一點。再加上 ${assetLabel(ctx, a)} 就成交。${style}`, `Close. Add ${assetLabel(ctx, a)} and it's a deal. ${style}`) };
       }
     }
   }
-  if (got < 0) return { decision: "reject", ratio, reason: "我們不想接下這份合約，它比球員本身的價值還貴。" };
-  return { decision: "reject", ratio, reason: `差太多了，我們覺得拿到的只有付出的 ${Math.round(Math.max(0, ratio) * 100)}%。${style}` };
+  if (got < 0) return { decision: "reject", ratio, reason: tr("我們不想接下這份合約，它比球員本身的價值還貴。", "We don't want that contract; it costs more than the player is worth.") };
+  return { decision: "reject", ratio, reason: tr(`差太多了，我們覺得拿到的只有付出的 ${Math.round(Math.max(0, ratio) * 100)}%。${style}`, `Not close. We'd get back only ${Math.round(Math.max(0, ratio) * 100)}% of what we give up. ${style}`) };
 }
 
 /** Re-checks everything, then moves players, contracts and picks in one transaction. */
@@ -208,7 +217,10 @@ export async function executeTrade(db: SaveDb, leagueId: string, offer: TradeOff
     id: crypto.randomUUID(), leagueId, season: league.season, day: league.day,
     teamA: userId, teamB: partner.id, assetsA: offer.give, assetsB: offer.get, status: "accepted", reason: verdict.reason,
   };
-  const text = `與 ${partner.city} ${partner.name} 完成交易：送出 ${offer.give.map((a) => assetLabel(ctx, a)).join("、") || "無"}；得到 ${offer.get.map((a) => assetLabel(ctx, a)).join("、") || "無"}。輪替已自動重排。`;
+  const text = tr(
+    `與 ${partner.city} ${partner.name} 完成交易：送出 ${offer.give.map((a) => assetLabel(ctx, a)).join("、") || "無"}；得到 ${offer.get.map((a) => assetLabel(ctx, a)).join("、") || "無"}。輪替已自動重排。`,
+    `Trade with the ${partner.city} ${partner.name}: sent ${offer.give.map((a) => assetLabel(ctx, a)).join(", ") || "nothing"}; received ${offer.get.map((a) => assetLabel(ctx, a)).join(", ") || "nothing"}. Rotation was redone automatically.`,
+  );
 
   await db.transaction("rw", [db.players, db.contracts, db.draftPicks, db.teams, db.trades, db.events], async () => {
     // Nothing may have changed hands since the offer was checked.
@@ -216,7 +228,7 @@ export async function executeTrade(db: SaveDb, leagueId: string, offer: TradeOff
       if (a.kind === "player") {
         const p = await db.players.get(a.playerId);
         const from = offer.give.includes(a) ? userId : partner.id;
-        if (p?.teamId !== from) throw new Error("交易內容已經改變，請重新確認");
+        if (p?.teamId !== from) throw new Error(tr("交易內容已經改變，請重新確認", "Something in this trade changed; check it again"));
       }
     }
     await db.players.bulkPut([...toPartner.players, ...toUser.players]);

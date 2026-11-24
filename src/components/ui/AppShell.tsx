@@ -1,7 +1,9 @@
+import { LangToggle } from "./LangToggle";
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/cn";
+import { tr } from "../../i18n";
 
 export interface NavItem { to: string; label: string; icon: LucideIcon }
 
@@ -31,7 +33,7 @@ export function AppShell({ title, subtitle, actions, nav, homeTo = "/", children
           <span className="size-[24px] rounded-full bg-accent shadow-glow" aria-hidden />
           <span className="font-display text-lg uppercase tracking-wider">Hoops GM</span>
         </Link>
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1" aria-label="主要導覽">{nav.map((n) => link(n, false))}</nav>
+        <nav className="flex-1 overflow-y-auto p-2 space-y-1" aria-label={tr("主要導覽", "Main navigation")}>{nav.map((n) => link(n, false))}</nav>
       </aside>
 
       <header className="sticky top-0 z-30 h-header flex items-center justify-between gap-3 border-b border-border bg-bg/90 backdrop-blur px-4">
@@ -39,12 +41,15 @@ export function AppShell({ title, subtitle, actions, nav, homeTo = "/", children
           <h1 className="font-display text-lg uppercase tracking-wide truncate leading-tight">{title}</h1>
           {subtitle && <div className="text-xs text-text-muted truncate">{subtitle}</div>}
         </div>
-        {actions}
+        <div className="flex items-center gap-2 shrink-0">
+          <LangToggle />
+          {actions}
+        </div>
       </header>
 
       <main className="mx-auto max-w-content px-4 py-6 pb-[96px] lg:pb-6">{children}</main>
 
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-bottom-nav grid grid-cols-5 border-t border-border bg-surface" aria-label="主要導覽">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 h-bottom-nav grid grid-cols-5 border-t border-border bg-surface" aria-label={tr("主要導覽", "Main navigation")}>
         {nav.slice(0, 5).map((n) => link(n, true))}
       </nav>
     </div>

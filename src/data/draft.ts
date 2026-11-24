@@ -2,6 +2,7 @@ import type { Contract, DraftPick, League, Player, SaveDb } from "../db/schema";
 import { conferenceStandings } from "../lib/standings";
 import { makeRng } from "../engine/rng";
 import { fullName, newEvent } from "./season";
+import { tr } from "../i18n";
 
 /** Worst regular-season record picks first; round two repeats the order. */
 export async function startDraft(db: SaveDb, league: League) {
@@ -12,11 +13,11 @@ export async function startDraft(db: SaveDb, league: League) {
     .map((r) => r.team.id);
   const picks = await db.draftPicks.where("[leagueId+season]").equals([league.id, league.season]).toArray();
   for (const p of picks) p.pickNo = (p.round - 1) * order.length + order.indexOf(p.originalTeamId) + 1;
-  const mine = picks.filter((p) => p.ownerTeamId === league.userTeamId).map((p) => `第 ${p.pickNo} 順位`).join("、");
+  const mine = picks.filter((p) => p.ownerTeamId === league.userTeamId).map((p) => tr(`第 ${p.pickNo} 順位`, `pick ${p.pickNo}`)).join(tr("、", ", "));
   await db.transaction("rw", [db.draftPicks, db.leagues, db.events], async () => {
     await db.draftPicks.bulkPut(picks);
     await db.leagues.update(league.id, { phase: "draft", updatedAt: new Date().toISOString() });
-    await db.events.add(newEvent(league, "draft", { text: `${league.season} 選秀開始。你持有${mine || "0 支籤"}。` }));
+    await db.events.add(newEvent(league, "draft", { text: tr(`${league.season} 選秀開始。你持有${mine || "0 支籤"}。`, `The ${league.season} draft has started. You hold ${mine || "no picks"}.`) }));
   });
 }
 
@@ -42,7 +43,7 @@ async function makePick(db: SaveDb, league: League, pick: DraftPick, player: Pla
   };
   await db.transaction("rw", [db.draftPicks, db.players, db.contracts, db.events], async () => {
     const fresh = await db.draftPicks.get(pick.id);
-    if (fresh?.playerId) throw new Error("這個順位已經選過了");
+    if (fresh?.playerId) throw new Error(tr("這個順位已經選過了", "That pick has already been used"));
     await db.draftPicks.update(pick.id, { playerId: player.id });
     await db.players.update(player.id, {
       teamId: pick.ownerTeamId, isProspect: 0,
@@ -50,7 +51,7 @@ async function makePick(db: SaveDb, league: League, pick: DraftPick, player: Pla
     });
     await db.contracts.add(contract);
     if (pick.ownerTeamId === league.userTeamId) {
-      await db.events.add(newEvent(league, "draft", { text: `你在第 ${pick.pickNo} 順位選了 ${fullName(player)}（${player.position}）。`, playerId: player.id }));
+      await db.events.add(newEvent(league, "draft", { text: tr(`你在第 ${pick.pickNo} 順位選了 ${fullName(player)}（${player.position}）。`, `You drafted ${fullName(player)} (${player.position}) with pick ${pick.pickNo}.`), playerId: player.id }));
     }
   });
 }
@@ -59,10 +60,10 @@ async function makePick(db: SaveDb, league: League, pick: DraftPick, player: Pla
 export async function draftPlayer(db: SaveDb, leagueId: string, playerId: string) {
   const league = (await db.leagues.get(leagueId))!;
   const { next } = await draftState(db, league);
-  if (league.phase !== "draft" || !next) throw new Error("現在不是選秀時間");
-  if (next.ownerTeamId !== league.userTeamId) throw new Error("還沒輪到你");
+  if (league.phase !== "draft" || !next) throw new Error(tr("現在不是選秀時間", "The draft is not on right now"));
+  if (next.ownerTeamId !== league.userTeamId) throw new Error(tr("還沒輪到你", "It is not your pick yet"));
   const player = await db.players.get(playerId);
-  if (!player || player.isProspect !== 1) throw new Error("這位球員已經被選走了");
+  if (!player || player.isProspect !== 1) throw new Error(tr("這位球員已經被選走了", "That player has already been drafted"));
   await makePick(db, league, next, player);
 }
 

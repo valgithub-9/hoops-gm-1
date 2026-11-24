@@ -1,4 +1,5 @@
 import { cn } from "../../lib/cn";
+import { tr } from "../../i18n";
 
 // 0-100 ratings. Colour bands are tokens; the number is always shown too,
 // so colour is never the only signal.
@@ -28,7 +29,7 @@ export function RatingBar({ label, value, potential, delta }: {
           <div
             className="absolute inset-y-0 bg-text/10 border-x border-text/30"
             style={{ left: `${potential[0]}%`, width: `${potential[1] - potential[0]}%` }}
-            title={`潛力估計 ${potential[0]}–${potential[1]}`}
+            title={tr(`潛力估計 ${potential[0]}–${potential[1]}`, `Scouted potential ${potential[0]}–${potential[1]}`)}
           />
         )}
         <div className={cn("h-full rounded-full", fill[tone])} style={{ width: `${value}%` }} />
@@ -50,7 +51,7 @@ export function Ovr({ value, size = "md" }: { value: number; size?: "sm" | "md" 
         size === "sm" && "size-[28px] text-xs", size === "md" && "size-[36px] text-base", size === "lg" && "size-[56px] text-xl",
         text[tone], chip[tone],
       )}
-      aria-label={`總評 ${value}`}
+      aria-label={tr(`總評 ${value}`, `Overall ${value}`)}
     >
       {value}
     </span>

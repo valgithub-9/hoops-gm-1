@@ -1,4 +1,5 @@
 import type { Team, TeamSeason } from "../db";
+import { tr } from "../i18n";
 
 export interface StandingRow { team: Team; ts: TeamSeason; pct: number; gb: number; rank: number }
 
@@ -22,4 +23,4 @@ export function conferenceStandings(teams: Team[], standings: TeamSeason[], conf
   return rows;
 }
 
-export const CONFERENCE_NAMES = ["東區", "西區"] as const;
+export const conferenceName = (c: 0 | 1) => (c === 0 ? tr("東區", "East") : tr("西區", "West"));

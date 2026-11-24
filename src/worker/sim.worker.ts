@@ -5,6 +5,7 @@ import { advance } from "../data/advance";
 import { autoDraft, draftPlayer } from "../data/draft";
 import { createLeague, type AdvanceUntil, type NewLeagueOptions } from "../data/league";
 import { nextPhase } from "../data/offseason";
+import { useLangFrom, type Lang } from "../i18n";
 
 export type WorkerRequest =
   | { id: number; fn: "createLeague"; args: NewLeagueOptions }
@@ -26,7 +27,8 @@ const post = (m: WorkerMessage) => (self as unknown as DedicatedWorkerGlobalScop
 const locked = <T,>(leagueId: string, fn: () => Promise<T>): Promise<T> =>
   navigator.locks ? (navigator.locks.request(`league:${leagueId}`, fn) as Promise<T>) : fn();
 
-self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
+self.onmessage = async (e: MessageEvent<WorkerRequest & { lang?: Lang }>) => {
+  if (e.data.lang) useLangFrom(e.data.lang);
   const req = e.data;
   try {
     let result: unknown = null;

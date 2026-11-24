@@ -13,6 +13,7 @@ import type { Player } from "../../db";
 import { cn } from "../../lib/cn";
 import { sim } from "../../worker/client";
 import { LeagueShell, useLeague } from "./LeagueShell";
+import { tr } from "../../i18n";
 
 // S14
 function Draft() {
@@ -20,7 +21,7 @@ function Draft() {
   const state = useDraft(league);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  if (!state) return <div className="h-[400px] rounded-lg bg-surface animate-pulse" aria-busy aria-label="載入選秀" />;
+  if (!state) return <div className="h-[400px] rounded-lg bg-surface animate-pulse" aria-busy aria-label={tr("載入選秀", "Loading draft")} />;
   const { picks, prospects, next, drafted } = state;
   const live = league.phase === "draft";
   const onClock = live && next?.ownerTeamId === userTeam.id;
@@ -31,45 +32,45 @@ function Draft() {
   };
 
   const cols: Column<Player>[] = [
-    { key: "name", header: "新秀", sticky: true, sortValue: (p) => p.lastName,
+    { key: "name", header: tr("新秀", "Prospect"), sticky: true, sortValue: (p) => p.lastName,
       cell: (p) => <Link to={`/l/${league.id}/player/${p.id}`} className="font-medium hover:text-accent-text">{p.firstName} {p.lastName}</Link> },
-    { key: "pos", header: "位置", cell: (p) => p.position },
-    { key: "age", header: "年齡", numeric: true, cell: age, sortValue: age },
-    { key: "ht", header: "身高", numeric: true, cell: (p) => p.heightCm, sortValue: (p) => p.heightCm },
-    { key: "ovr", header: "總評", numeric: true, cell: (p) => <Ovr value={p.overall} size="sm" />, sortValue: (p) => p.overall },
-    { key: "pot", header: "潛力（估）", numeric: true, cell: (p) => { const [a, b] = scoutedPotential(p); return `${a}–${b}`; }, sortValue: (p) => scoutedPotential(p)[1] },
+    { key: "pos", header: tr("位置", "Pos"), cell: (p) => p.position },
+    { key: "age", header: tr("年齡", "Age"), numeric: true, cell: age, sortValue: age },
+    { key: "ht", header: tr("身高", "Height"), numeric: true, cell: (p) => p.heightCm, sortValue: (p) => p.heightCm },
+    { key: "ovr", header: tr("總評", "Ovr"), numeric: true, cell: (p) => <Ovr value={p.overall} size="sm" />, sortValue: (p) => p.overall },
+    { key: "pot", header: tr("潛力（估）", "Potential (est.)"), numeric: true, cell: (p) => { const [a, b] = scoutedPotential(p); return `${a}–${b}`; }, sortValue: (p) => scoutedPotential(p)[1] },
     ...(onClock ? [{ key: "pick", header: "", cell: (p: Player) => (
-      <Button size="sm" disabled={busy} onClick={() => go(() => sim.draftPlayer(league.id, p.id))} aria-label={`選 ${p.firstName} ${p.lastName}`}>選他</Button>
+      <Button size="sm" disabled={busy} onClick={() => go(() => sim.draftPlayer(league.id, p.id))} aria-label={tr(`選 ${p.firstName} ${p.lastName}`, `Draft ${p.firstName} ${p.lastName}`)}>{tr("選他", "Draft")}</Button>
     ) }] : []),
   ];
 
   return (
     <div className="space-y-6">
-      {!live && <Card><p className="text-text-muted">{league.season} 選秀會在季後賽結束後進行，最差戰績先選。下面是今年的新秀名單，總評是現在的能力，潛力是球探的估計區間。</p></Card>}
+      {!live && <Card><p className="text-text-muted">{tr(`${league.season} 選秀會在季後賽結束後進行，最差戰績先選。下面是今年的新秀名單，總評是現在的能力，潛力是球探的估計區間。`, `The ${league.season} draft happens after the playoffs; worst record picks first. These are this year's prospects: overall is their level today, potential is the scouts' estimated range.`)}</p></Card>}
       {live && (
         <div className={cn("rounded-lg border p-4 flex flex-wrap items-center gap-3", onClock ? "border-accent bg-accent/10 shadow-glow" : "border-border bg-surface")} role="status" aria-live="polite">
           {next ? (
             <>
               <TeamChip abbrev={teamById.get(next.ownerTeamId)!.abbrev} primary={teamById.get(next.ownerTeamId)!.colors.primary} />
               <div className="flex-1 min-w-0">
-                <div className="font-display uppercase">{onClock ? "輪到你了！" : `${teamById.get(next.ownerTeamId)!.city} ${teamById.get(next.ownerTeamId)!.name} 選秀中`}</div>
-                <div className="text-xs text-text-muted">第 {next.round} 輪，第 {next.pickNo} 順位</div>
+                <div className="font-display uppercase">{onClock ? tr("輪到你了！", "You're on the clock!") : tr(`${teamById.get(next.ownerTeamId)!.city} ${teamById.get(next.ownerTeamId)!.name} 選秀中`, `The ${teamById.get(next.ownerTeamId)!.city} ${teamById.get(next.ownerTeamId)!.name} are picking`)}</div>
+                <div className="text-xs text-text-muted">{tr(`第 ${next.round} 輪，第 ${next.pickNo} 順位`, `Round ${next.round}, pick ${next.pickNo}`)}</div>
               </div>
-              {!onClock && <Button loading={busy} onClick={() => go(() => sim.autoDraft(league.id, "untilUser"))}><FastForward className="size-4" aria-hidden />模擬到輪到我</Button>}
-              <Button variant="secondary" disabled={busy} onClick={() => go(() => sim.autoDraft(league.id, "all"))}><SkipForward className="size-4" aria-hidden />全部自動選完</Button>
+              {!onClock && <Button loading={busy} onClick={() => go(() => sim.autoDraft(league.id, "untilUser"))}><FastForward className="size-4" aria-hidden />{tr("模擬到輪到我", "Sim to my pick")}</Button>}
+              <Button variant="secondary" disabled={busy} onClick={() => go(() => sim.autoDraft(league.id, "all"))}><SkipForward className="size-4" aria-hidden />{tr("全部自動選完", "Auto-draft the rest")}</Button>
             </>
-          ) : <div className="font-display uppercase">選秀結束。按右上角「開始新球季」。</div>}
+          ) : <div className="font-display uppercase">{tr("選秀結束。按右上角「開始新球季」。", "The draft is over. Press Start new season at the top right.")}</div>}
         </div>
       )}
       {error && <p className="text-sm text-danger" role="alert">{error}</p>}
 
       <div className="grid xl:grid-cols-[1fr_320px] gap-6 items-start">
         <section className="space-y-2 min-w-0">
-          <h2 className="font-display text-lg uppercase">新秀（{prospects.length}）</h2>
-          <DataTable caption="可選新秀" rows={prospects} columns={cols} rowKey={(p) => p.id} initialSort={{ key: "ovr", dir: "desc" }} empty="新秀都被選完了。" />
+          <h2 className="font-display text-lg uppercase">{tr(`新秀（${prospects.length}）`, `Prospects (${prospects.length})`)}</h2>
+          <DataTable caption={tr("可選新秀", "Available prospects")} rows={prospects} columns={cols} rowKey={(p) => p.id} initialSort={{ key: "ovr", dir: "desc" }} empty={tr("新秀都被選完了。", "Every prospect has been drafted.")} />
         </section>
         {live && (
-          <Card title="選秀順位">
+          <Card title={tr("選秀順位", "Draft order")}>
             <ol className="-mx-2 max-h-[560px] overflow-y-auto">
               {picks.map((pk) => {
                 const t = teamById.get(pk.ownerTeamId)!;
@@ -79,7 +80,7 @@ function Draft() {
                     <span className="num w-[28px] text-right font-mono text-xs text-text-subtle">{pk.pickNo}</span>
                     <TeamChip abbrev={t.abbrev} primary={t.colors.primary} size={22} />
                     <span className="flex-1 truncate">{pk.playerId ? <PickedName player={drafted.get(pk.playerId)} leagueId={league.id} /> : <span className="text-text-subtle">—</span>}</span>
-                    {mine && <Badge tone="accent">你</Badge>}
+                    {mine && <Badge tone="accent">{tr("你", "You")}</Badge>}
                   </li>
                 );
               })}
@@ -97,5 +98,5 @@ function PickedName({ player, leagueId }: { player?: Player; leagueId: string })
 }
 
 export function DraftPage() {
-  return <LeagueShell title="選秀"><Draft /></LeagueShell>;
+  return <LeagueShell title={tr("選秀", "Draft")}><Draft /></LeagueShell>;
 }

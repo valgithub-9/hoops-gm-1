@@ -2,6 +2,7 @@ import { ArrowLeftRight } from "lucide-react";
 import { money } from "./ContractTag";
 import { Badge } from "./Badge";
 import { cn } from "../../lib/cn";
+import { tr } from "../../i18n";
 
 type Asset = { id: string; label: string; salary?: number };
 type Side = { team: string; assets: Asset[] };
@@ -26,7 +27,7 @@ export function TradePanel({ a, b, problems = [], verdict }: {
         ))}
       </ul>
       <div className="mt-2 border-t border-border pt-2 flex justify-between text-xs">
-        <span className="text-text-muted">薪資合計</span>
+        <span className="text-text-muted">{tr("薪資合計", "Total salary")}</span>
         <span className="num font-mono">{money(total(s))}</span>
       </div>
     </div>
@@ -34,12 +35,12 @@ export function TradePanel({ a, b, problems = [], verdict }: {
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row items-stretch gap-3">
-        {col(a, "送出")}
+        {col(a, tr("送出", "Sends"))}
         <ArrowLeftRight className="size-5 self-center text-text-subtle shrink-0" aria-hidden />
-        {col(b, "得到")}
+        {col(b, tr("得到", "Gets"))}
       </div>
       {problems.length > 0 && (
-        <ul className="space-y-1" aria-label="交易問題">
+        <ul className="space-y-1" aria-label={tr("交易問題", "Trade problems")}>
           {problems.map((p) => <li key={p}><Badge tone="warning">{p}</Badge></li>)}
         </ul>
       )}
@@ -47,7 +48,7 @@ export function TradePanel({ a, b, problems = [], verdict }: {
         <div className={cn("rounded-md border p-3 text-sm",
           verdict.decision === "accept" ? "border-success/40 text-success" : verdict.decision === "reject" ? "border-danger/40 text-danger" : "border-info/40 text-info")}
           role="status">
-          <span className="font-semibold">{verdict.decision === "accept" ? "對方接受" : verdict.decision === "reject" ? "對方拒絕" : "對方還價"}：</span>
+          <span className="font-semibold">{verdict.decision === "accept" ? tr("對方接受", "They accept") : verdict.decision === "reject" ? tr("對方拒絕", "They decline") : tr("對方還價", "Counter-offer")}{tr("：", ": ")}</span>
           <span className="text-text-muted">{verdict.reason}</span>
         </div>
       )}

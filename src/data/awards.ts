@@ -1,4 +1,5 @@
 import type { Award, League, Player, PlayerGameStat, PlayerSeasonStat, SaveDb, Team, TeamSeason } from "../db/schema";
+import { lang } from "../i18n";
 
 type Totals = Omit<PlayerSeasonStat, "id" | "leagueId" | "playerId" | "season" | "teamId" | "isPlayoff">;
 const zero = (): Totals => ({ gp: 0, gs: 0, min: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pf: 0 });
@@ -71,7 +72,12 @@ export async function computeAwards(
   return { awards, seasonStats };
 }
 
-export const AWARD_NAMES: Record<Award["type"], string> = {
+const AWARD_NAMES_ZH: Record<Award["type"], string> = {
   CHAMPION: "總冠軍", MVP: "年度最有價值球員", DPOY: "年度最佳防守球員", ROY: "年度最佳新秀", SMOY: "年度最佳第六人",
   MIP: "年度進步獎", FINALS_MVP: "總冠軍賽 MVP", ALL_LEAGUE_1: "年度第一隊", ALL_LEAGUE_2: "年度第二隊", ALL_LEAGUE_3: "年度第三隊",
 };
+const AWARD_NAMES_EN: Record<Award["type"], string> = {
+  CHAMPION: "Champion", MVP: "Most Valuable Player", DPOY: "Defensive Player of the Year", ROY: "Rookie of the Year", SMOY: "Sixth Man of the Year",
+  MIP: "Most Improved", FINALS_MVP: "Finals MVP", ALL_LEAGUE_1: "All-League First Team", ALL_LEAGUE_2: "All-League Second Team", ALL_LEAGUE_3: "All-League Third Team",
+};
+export const awardName = (t: Award["type"]) => (lang() === "en" ? AWARD_NAMES_EN : AWARD_NAMES_ZH)[t];

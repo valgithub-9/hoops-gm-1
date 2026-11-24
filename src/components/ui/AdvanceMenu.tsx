@@ -1,16 +1,17 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, FastForward, Play } from "lucide-react";
 import { Button } from "./Button";
+import { tr } from "../../i18n";
 
 export type AdvanceOption = "day" | "week" | "deadline" | "phaseEnd";
-const DEFAULT_OPTIONS: { id: AdvanceOption; label: string }[] = [
-  { id: "day", label: "推進一天" },
-  { id: "week", label: "推進一週" },
-  { id: "phaseEnd", label: "到例行賽結束" },
+const defaultOptions = (): { id: AdvanceOption; label: string }[] => [
+  { id: "day", label: tr("推進一天", "Play a day") },
+  { id: "week", label: tr("推進一週", "Play a week") },
+  { id: "phaseEnd", label: tr("到例行賽結束", "To end of regular season") },
 ];
 
 // The core action of the game (F02). Blocked state explains why.
-export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason, inHeader, options = DEFAULT_OPTIONS }: {
+export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason, inHeader, options = defaultOptions() }: {
   onAdvance: (until: AdvanceOption) => void; onCancel?: () => void; busy?: boolean; progress?: string; blockedReason?: string;
   options?: { id: AdvanceOption; label: string }[];
   /** In the 56px header there is no room for the reason line: it goes in the tooltip and screen-reader text. */
@@ -20,8 +21,8 @@ export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason
     return (
       <div className="flex items-center gap-2">
         {progress && <span className="num hidden sm:inline text-xs text-text-muted" role="status">{progress}</span>}
-        <Button variant="secondary" loading onClick={onCancel} disabled={false}>模擬中…</Button>
-        <Button variant="ghost" size="sm" onClick={onCancel}>停止</Button>
+        <Button variant="secondary" loading onClick={onCancel} disabled={false}>{tr("模擬中…", "Simulating…")}</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>{tr("停止", "Stop")}</Button>
       </div>
     );
   }
@@ -31,11 +32,11 @@ export function AdvanceMenu({ onAdvance, onCancel, busy, progress, blockedReason
         <Button className="rounded-r-none" loading={busy} disabled={!!blockedReason} onClick={() => onAdvance(options[0].id)}
           title={blockedReason} aria-describedby={blockedReason ? "advance-blocked" : undefined}>
           {!busy && <Play className="size-4" aria-hidden />}
-          {busy ? "模擬中…" : "推進"}
+          {busy ? tr("模擬中…", "Simulating…") : tr("推進", "Play")}
         </Button>
         <Menu.Root>
           <Menu.Trigger asChild>
-            <Button className="rounded-l-none border-l border-on-accent/20 px-2" disabled={busy || !!blockedReason} aria-label="更多推進選項">
+            <Button className="rounded-l-none border-l border-on-accent/20 px-2" disabled={busy || !!blockedReason} aria-label={tr("更多推進選項", "More advance options")}>
               <ChevronDown className="size-4" aria-hidden />
             </Button>
           </Menu.Trigger>

@@ -1,5 +1,6 @@
 import type { Table } from "dexie";
 import { LEAGUE_OWNED_TABLES, SCHEMA_VERSION, type League, type SaveDb } from "../db/schema";
+import { tr } from "../i18n";
 
 export const SAVE_FORMAT = "hoops-gm-save";
 export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
@@ -9,7 +10,7 @@ export interface SaveFile { format: typeof SAVE_FORMAT; schemaVersion: number; e
 
 export async function exportLeague(db: SaveDb, leagueId: string): Promise<SaveFile> {
   const league = await db.leagues.get(leagueId);
-  if (!league) throw new Error("找不到這個聯盟");
+  if (!league) throw new Error(tr("找不到這個聯盟", "League not found"));
   const tables = {} as Tables;
   for (const t of LEAGUE_OWNED_TABLES) {
     tables[t] = (await db[t].where("leagueId").equals(leagueId).toArray()) as unknown as Record<string, unknown>[];
@@ -22,19 +23,19 @@ export async function exportLeague(db: SaveDb, leagueId: string): Promise<SaveFi
  * every row must belong to the file's league, and nothing in it is executed.
  */
 export async function importLeague(db: SaveDb, text: string): Promise<string> {
-  if (text.length > MAX_IMPORT_BYTES) throw new Error("檔案太大（上限 100 MB）");
+  if (text.length > MAX_IMPORT_BYTES) throw new Error(tr("檔案太大（上限 100 MB）", "File is too large (limit 100 MB)"));
   let data: SaveFile;
-  try { data = JSON.parse(text); } catch { throw new Error("不是有效的存檔檔案（JSON 格式錯誤）"); }
-  if (!data || data.format !== SAVE_FORMAT) throw new Error("不是 Hoops GM 的存檔檔案");
-  if (typeof data.schemaVersion !== "number" || data.schemaVersion > SCHEMA_VERSION) throw new Error("這份存檔來自較新的版本，請先更新遊戲");
+  try { data = JSON.parse(text); } catch { throw new Error(tr("不是有效的存檔檔案（JSON 格式錯誤）", "Not a valid save file (bad JSON)")); }
+  if (!data || data.format !== SAVE_FORMAT) throw new Error(tr("不是 Hoops GM 的存檔檔案", "Not a Hoops GM save file"));
+  if (typeof data.schemaVersion !== "number" || data.schemaVersion > SCHEMA_VERSION) throw new Error(tr("這份存檔來自較新的版本，請先更新遊戲", "This save is from a newer version of the game; update first"));
   const league = data.league;
-  if (!league || typeof league.id !== "string" || typeof league.name !== "string" || typeof league.season !== "number") throw new Error("存檔內容不完整");
-  if (await db.leagues.get(league.id)) throw new Error("這份存檔已經在這個瀏覽器裡了");
+  if (!league || typeof league.id !== "string" || typeof league.name !== "string" || typeof league.season !== "number") throw new Error(tr("存檔內容不完整", "The save file is incomplete"));
+  if (await db.leagues.get(league.id)) throw new Error(tr("這份存檔已經在這個瀏覽器裡了", "This save is already in this browser"));
   for (const t of LEAGUE_OWNED_TABLES) {
     const rows = data.tables?.[t];
-    if (!Array.isArray(rows)) throw new Error(`存檔內容不完整（缺少 ${t}）`);
+    if (!Array.isArray(rows)) throw new Error(tr(`存檔內容不完整（缺少 ${t}）`, `The save file is incomplete (missing ${t})`));
     for (const r of rows) {
-      if (!r || typeof r !== "object" || typeof r.id !== "string" || r.leagueId !== league.id) throw new Error(`存檔內容有誤（${t}）`);
+      if (!r || typeof r !== "object" || typeof r.id !== "string" || r.leagueId !== league.id) throw new Error(tr(`存檔內容有誤（${t}）`, `The save file has bad data (${t})`));
     }
   }
   // Migrations for older files.

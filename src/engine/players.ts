@@ -1,16 +1,22 @@
 import type { Position, Ratings } from "../db/schema";
 import { clamp, type Rng } from "./rng";
 import { FIRST_NAMES, LAST_NAMES } from "./names";
+import { lang } from "../i18n";
 
 export const POSITIONS: Position[] = ["PG", "SG", "SF", "PF", "C"];
 export const RATING_KEYS: (keyof Ratings)[] = [
   "inside", "midrange", "three", "freeThrow", "passing", "handling",
   "rebounding", "perimeterD", "interiorD", "athleticism", "stamina", "iq",
 ];
-export const RATING_LABELS: Record<keyof Ratings, string> = {
+const RATING_LABELS_ZH: Record<keyof Ratings, string> = {
   inside: "內線", midrange: "中距離", three: "三分", freeThrow: "罰球", passing: "傳球", handling: "運球",
   rebounding: "籃板", perimeterD: "外線防守", interiorD: "內線防守", athleticism: "體能", stamina: "耐力", iq: "球商",
 };
+const RATING_LABELS_EN: Record<keyof Ratings, string> = {
+  inside: "Inside", midrange: "Mid-range", three: "Three", freeThrow: "Free throw", passing: "Passing", handling: "Handling",
+  rebounding: "Rebounding", perimeterD: "Perimeter D", interiorD: "Interior D", athleticism: "Athleticism", stamina: "Stamina", iq: "IQ",
+};
+export const ratingLabel = (k: keyof Ratings) => (lang() === "en" ? RATING_LABELS_EN : RATING_LABELS_ZH)[k];
 
 // How each position shifts a player's ratings from their base talent.
 const PROFILE: Record<Position, Partial<Ratings>> = {

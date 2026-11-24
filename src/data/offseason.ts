@@ -9,6 +9,7 @@ import { lastRegularDay, MAX_SALARY } from "./league";
 import { champion, getBracket } from "./playoffs";
 import { draftDone, startDraft } from "./draft";
 import { fullName, newEvent, seasonSetup } from "./season";
+import { tr } from "../i18n";
 
 /**
  * Mean yearly change in ratings by age. It matches the slope of the age curve
@@ -52,7 +53,7 @@ const retires = (age: number, ovr: number, rng: Rng) =>
  */
 export async function startNewSeason(db: SaveDb, leagueId: string) {
   const league = (await db.leagues.get(leagueId))!;
-  if (league.phase !== "draft") throw new Error("要先完成選秀");
+  if (league.phase !== "draft") throw new Error(tr("要先完成選秀", "Finish the draft first"));
   const season = league.season;
   const next = season + 1;
   const rng = makeRng(`${league.seed}:offseason:${season}`);
@@ -78,7 +79,7 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     if (wasProspect) q = { ...q, isProspect: 0, teamId: FREE_AGENT }; // went undrafted
     if (!wasProspect && retires(age, q.overall, rng)) {
       q = { ...q, retiredSeason: season, teamId: FREE_AGENT };
-      if (p.teamId === user.id) ev(`${fullName(p)}（${age - 1} 歲）宣布退休。`, "retirement");
+      if (p.teamId === user.id) ev(tr(`${fullName(p)}（${age - 1} 歲）宣布退休。`, `${fullName(p)} (age ${age - 1}) has retired.`), "retirement");
       for (const c of contracts) if (c.playerId === p.id && c.endSeason >= next) endedContracts.push({ ...c, endSeason: season });
     }
     players.set(p.id, q);
@@ -102,7 +103,7 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     if (c.teamId === user.id) {
       players.set(p.id, { ...p, teamId: FREE_AGENT });
       leftUser.add(p.id);
-      ev(`${fullName(p)} 合約到期沒有續約，成為自由球員。想留他的話可以到自由市場把他簽回來。`);
+      ev(tr(`${fullName(p)} 合約到期沒有續約，成為自由球員。想留他的話可以到自由市場把他簽回來。`, `${fullName(p)}'s contract ran out without an extension, so he is a free agent. Sign him back in Free Agency if you want to keep him.`));
       continue;
     }
     const roster = rosterOf(c.teamId).sort((a, b) => b.overall - a.overall);
@@ -133,7 +134,7 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
       players.set(cut.id, { ...cut, teamId: FREE_AGENT });
       const c = salaryOf(cut.id);
       if (c) endedContracts.push({ ...c, endSeason: season });
-      if (t.id === user.id) ev(`名單超過 ${league.settings.rosterMax} 人，${fullName(cut)} 被釋出。`);
+      if (t.id === user.id) ev(tr(`名單超過 ${league.settings.rosterMax} 人，${fullName(cut)} 被釋出。`, `Roster was over ${league.settings.rosterMax}, so ${fullName(cut)} was released.`));
     }
   }
   const freeAgents = () => [...players.values()]
@@ -170,14 +171,14 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     });
   }
   const short = league.settings.rosterMin - rosterOf(user.id).length;
-  if (short > 0) ev(`名單只有 ${rosterOf(user.id).length} 人，還差 ${short} 人才能開賽。到「自由市場」補人。`, "milestone");
+  if (short > 0) ev(tr(`名單只有 ${rosterOf(user.id).length} 人，還差 ${short} 人才能開賽。到「自由市場」補人。`, `Your roster has ${rosterOf(user.id).length} players; you need ${short} more before the season can start. Sign them in Free Agency.`), "milestone");
 
   // 4. Rotations for the new rosters. The user's tactics are kept.
   const newTeams: Team[] = teams.map((t) => {
     const rot = autoRotation(rosterOf(t.id));
     return { ...t, rotation: t.id === user.id ? { ...rot, tactics: t.rotation.tactics } : rot };
   });
-  if (rosterOf(user.id).length) ev("新球季的輪替已依總評自動重排，可以到「輪替」調整。", "milestone");
+  if (rosterOf(user.id).length) ev(tr("新球季的輪替已依總評自動重排，可以到「輪替」調整。", "Your rotation for the new season was set by overall rating. Adjust it in Rotation."), "milestone");
 
   // 5. Next season.
   const existingPicks = await db.draftPicks.where("leagueId").equals(leagueId).toArray();
@@ -205,22 +206,22 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
 export async function nextPhase(db: SaveDb, leagueId: string) {
   const league: League = (await db.leagues.get(leagueId))!;
   if (league.phase === "regular") {
-    if (league.day <= (await lastRegularDay(db, league))) throw new Error("例行賽還沒打完");
+    if (league.day <= (await lastRegularDay(db, league))) throw new Error(tr("例行賽還沒打完", "The regular season is not over yet"));
     await db.transaction("rw", [db.leagues, db.events], async () => {
       await db.leagues.update(leagueId, { phase: "playoffs", updatedAt: new Date().toISOString() });
-      await db.events.add(newEvent(league, "milestone", { text: `${league.season} 季後賽開打。` }));
+      await db.events.add(newEvent(league, "milestone", { text: tr(`${league.season} 季後賽開打。`, `The ${league.season} playoffs have started.`) }));
     });
     return "playoffs";
   }
   if (league.phase === "playoffs") {
-    if (!champion(await getBracket(db, league))) throw new Error("季後賽還沒打完");
+    if (!champion(await getBracket(db, league))) throw new Error(tr("季後賽還沒打完", "The playoffs are not over yet"));
     await startDraft(db, league);
     return "draft";
   }
   if (league.phase === "draft") {
-    if (!(await draftDone(db, league))) throw new Error("選秀還沒結束");
+    if (!(await draftDone(db, league))) throw new Error(tr("選秀還沒結束", "The draft is not finished yet"));
     await startNewSeason(db, leagueId);
     return "regular";
   }
-  throw new Error(`未知的階段：${league.phase}`);
+  throw new Error(tr(`未知的階段：${league.phase}`, `Unknown phase: ${league.phase}`));
 }

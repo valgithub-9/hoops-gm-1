@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { TeamChip } from "../../components/ui/TeamChip";
-import { AWARD_NAMES } from "../../data/awards";
+import { awardName } from "../../data/awards";
 import { useAwards } from "../../data/queries";
 import type { Award } from "../../db";
 import { LeagueShell, useLeague } from "./LeagueShell";
+import { tr } from "../../i18n";
 
 const ORDER: Award["type"][] = ["CHAMPION", "FINALS_MVP", "MVP", "DPOY", "ROY", "SMOY", "ALL_LEAGUE_1", "ALL_LEAGUE_2"];
 
@@ -12,12 +13,12 @@ const ORDER: Award["type"][] = ["CHAMPION", "FINALS_MVP", "MVP", "DPOY", "ROY", 
 function Awards() {
   const { league, teamById } = useLeague();
   const data = useAwards(league.id);
-  if (!data) return <div className="h-[300px] rounded-lg bg-surface animate-pulse" aria-busy aria-label="載入獎項" />;
+  if (!data) return <div className="h-[300px] rounded-lg bg-surface animate-pulse" aria-busy aria-label={tr("載入獎項", "Loading awards")} />;
   const seasons = [...new Set(data.awards.map((a) => a.season))].sort((a, b) => b - a);
-  if (seasons.length === 0) return <Card><p className="text-text-muted">年度獎項在季後賽結束後公布。</p></Card>;
+  if (seasons.length === 0) return <Card><p className="text-text-muted">{tr("年度獎項在季後賽結束後公布。", "Season awards are announced when the playoffs end.")}</p></Card>;
   const statLine = (playerId: string, season: number) => {
     const s = data.seasonStats.find((x) => x.playerId === playerId && x.season === season && !x.isPlayoff);
-    return s && s.gp ? `${(s.pts / s.gp).toFixed(1)} 分 ${(s.reb / s.gp).toFixed(1)} 板 ${(s.ast / s.gp).toFixed(1)} 助` : "";
+    return s && s.gp ? tr(`${(s.pts / s.gp).toFixed(1)} 分 ${(s.reb / s.gp).toFixed(1)} 板 ${(s.ast / s.gp).toFixed(1)} 助`, `${(s.pts / s.gp).toFixed(1)} pts ${(s.reb / s.gp).toFixed(1)} reb ${(s.ast / s.gp).toFixed(1)} ast`) : "";
   };
   return (
     <div className="space-y-8">
@@ -25,13 +26,13 @@ function Awards() {
         const list = data.awards.filter((a) => a.season === season);
         return (
           <section key={season} className="space-y-3">
-            <h2 className="font-display text-xl uppercase">{season} 球季</h2>
+            <h2 className="font-display text-xl uppercase">{tr(`${season} 球季`, `${season} season`)}</h2>
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
               {ORDER.map((type) => {
                 const winners = list.filter((a) => a.type === type);
                 if (!winners.length) return null;
                 return (
-                  <Card key={type} title={AWARD_NAMES[type]}>
+                  <Card key={type} title={awardName(type)}>
                     <ul className="space-y-2">
                       {winners.map((a) => {
                         const t = teamById.get(a.teamId);
@@ -60,5 +61,5 @@ function Awards() {
 }
 
 export function AwardsPage() {
-  return <LeagueShell title="年度獎項"><Awards /></LeagueShell>;
+  return <LeagueShell title={tr("年度獎項", "Awards")}><Awards /></LeagueShell>;
 }

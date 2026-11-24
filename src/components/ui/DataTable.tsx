@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { tr } from "../../i18n";
 
 export type Column<T> = {
   key: string;
@@ -12,7 +13,7 @@ export type Column<T> = {
   width?: string;
 };
 
-export function DataTable<T>({ rows, columns, rowKey, caption, empty = "沒有資料", initialSort }: {
+export function DataTable<T>({ rows, columns, rowKey, caption, empty = tr("沒有資料", "Nothing here yet"), initialSort }: {
   rows: T[]; columns: Column<T>[]; rowKey: (r: T) => string; caption: string; empty?: ReactNode;
   initialSort?: { key: string; dir: "asc" | "desc" };
 }) {

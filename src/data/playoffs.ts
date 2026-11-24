@@ -4,6 +4,7 @@ import { conferenceStandings } from "../lib/standings";
 import { computeAwards } from "./awards";
 import { applyInjuries, injuryEvents, loadSimTeams, newEvent, statRows } from "./season";
 import type { AdvanceResult, AdvanceUntil } from "./league";
+import { tr } from "../i18n";
 
 export const WINS_NEEDED = 4;
 const HOME_GAMES_FOR_TOP = new Set([1, 2, 5, 7]);
@@ -35,10 +36,10 @@ export const roundsFor = (playoffTeams: number) => Math.log2(playoffTeams / 2) +
 
 export function roundName(round: number, playoffTeams: number) {
   const total = roundsFor(playoffTeams);
-  if (round === total - 1) return "總冠軍賽";
-  if (round === total - 2) return "分區冠軍賽";
-  if (round === total - 3) return "分區準決賽";
-  return "第一輪";
+  if (round === total - 1) return tr("總冠軍賽", "Finals");
+  if (round === total - 2) return tr("分區冠軍賽", "Conference Finals");
+  if (round === total - 3) return tr("分區準決賽", "Conference Semifinals");
+  return tr("第一輪", "First Round");
 }
 
 /** The whole bracket, derived from final standings plus the playoff games played so far. */
@@ -208,8 +209,11 @@ async function finishPlayoffs(db: SaveDb, league: League, rounds: Series[][], te
     await db.playerSeasonStats.bulkAdd(awards.seasonStats);
     await db.events.add(newEvent(league, "award", {
       text: champ === user.id
-        ? `🏆 ${user.city} ${user.name} 拿下 ${league.season} 年總冠軍！`
-        : `${champTeam.city} ${champTeam.name} 拿下 ${league.season} 年總冠軍。${userResult.playoffResult === "missed" ? "你的球隊沒有打進季後賽。" : `你的球隊止步${roundName(userResult.playoffRoundReached!, league.settings.playoffTeams)}。`}`,
+        ? tr(`🏆 ${user.city} ${user.name} 拿下 ${league.season} 年總冠軍！`, `🏆 The ${user.city} ${user.name} are the ${league.season} champions!`)
+        : tr(`${champTeam.city} ${champTeam.name} 拿下 ${league.season} 年總冠軍。`, `The ${champTeam.city} ${champTeam.name} won the ${league.season} title. `)
+          + (userResult.playoffResult === "missed"
+            ? tr("你的球隊沒有打進季後賽。", "Your team missed the playoffs.")
+            : tr(`你的球隊止步${roundName(userResult.playoffRoundReached!, league.settings.playoffTeams)}。`, `Your team went out in the ${roundName(userResult.playoffRoundReached!, league.settings.playoffTeams)}.`)),
     }));
   });
 }
