@@ -189,6 +189,8 @@ export async function startNewSeason(db: SaveDb, leagueId: string) {
     [db.leagues, db.teams, db.players, db.contracts, db.ratingHistory, db.games, db.teamSeasons, db.draftPicks, db.events, db.playerGameStats],
     async () => {
       await db.playerGameStats.where("[leagueId+season]").between([leagueId, 0], [leagueId, dropBefore], true, false).delete();
+      await db.games.where("leagueId").equals(leagueId).filter((g) => g.season < dropBefore && g.playByPlay !== null)
+        .modify((g) => { g.playByPlay = null; });
       await db.ratingHistory.bulkAdd(history);
       await db.players.bulkPut([...players.values(), ...setup.prospects]);
       await db.contracts.bulkPut([...endedContracts, ...newContracts]);

@@ -116,6 +116,14 @@ describe("eight seasons in a row (8 teams, 20 games)", () => {
     expect(Math.min(...lines.map((l) => l.season))).toBe(league.season - 1);
     const totals = await db.playerSeasonStats.where("leagueId").equals(id).toArray();
     expect(new Set(totals.map((t) => t.season)).size).toBe(8);
+    // Play-by-play: only the user's games, only the last two seasons.
+    const games = await db.games.where("leagueId").equals(id).toArray();
+    const withPlays = games.filter((g) => g.playByPlay);
+    expect(withPlays.length).toBeGreaterThan(0);
+    expect(withPlays.every((g) => [g.homeTeamId, g.awayTeamId].includes(league.userTeamId))).toBe(true);
+    expect(Math.min(...withPlays.map((g) => g.season))).toBe(league.season - 1);
+    const last = withPlays[0].playByPlay!;
+    expect(last[last.length - 1].scoreHome).toBe(withPlays[0].scoreHome);
   });
 
   it("does not drift: average overall stays within a few points", () => {

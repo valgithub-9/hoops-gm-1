@@ -208,8 +208,9 @@ export async function advanceRegular(
     for (const g of todays) {
       if (g.status !== "scheduled" || g.isPlayoff) continue;
       const home = simTeams.get(g.homeTeamId)!, away = simTeams.get(g.awayTeamId)!;
-      const r = simGame(home, away, g.seed);
-      const done: Game = { ...g, status: "final", scoreHome: r.scoreHome, scoreAway: r.scoreAway };
+      // Only the user's games are recorded play by play: they are the ones anyone will watch.
+      const r = simGame(home, away, g.seed, { playByPlay: [g.homeTeamId, g.awayTeamId].includes(league.userTeamId) });
+      const done: Game = { ...g, status: "final", scoreHome: r.scoreHome, scoreAway: r.scoreAway, playByPlay: r.playByPlay ?? null };
       finished.push(done);
       lines.push(...statRows(leagueId, league.season, done, home, away, r));
       applyInjuries([home, away], playerById, r, changed);

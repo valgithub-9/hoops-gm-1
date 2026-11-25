@@ -40,6 +40,7 @@ function Box() {
   return (
     <div className="space-y-6">
       <Link to={`/l/${league.id}/schedule`} className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text"><ArrowLeft className="size-4" aria-hidden />{tr("賽程", "Schedule")}</Link>
+      {game.playByPlay && <Link to={`/l/${league.id}/game/${game.id}`} className="ml-4 text-sm text-accent-text hover:underline">{tr("逐球紀錄", "Play-by-play")} →</Link>}
       <div className="max-w-[560px]">
         <Scoreboard final period="" away={side(game.awayTeamId, game.scoreAway!)} home={side(game.homeTeamId, game.scoreHome!)} />
         <p className="mt-2 text-xs text-text-subtle">{game.isPlayoff ? tr("季後賽 · ", "Playoffs · ") : ""}{tr(`${league.season} 球季第 ${game.day + 1} 天`, `${league.season} season, day ${game.day + 1}`)}{lines.some((l) => l.min > 48) ? tr(" · 延長賽", " · overtime") : ""}</p>

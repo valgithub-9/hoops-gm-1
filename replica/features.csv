@@ -20,12 +20,12 @@ Box score 與球員單場數據,game,must,genre,yes,
 自由市場簽約（出價、競價）,free agency,should,genre,partial,出價、續約、釋出都已完成；還沒有其他球隊同時競價
 選秀樂透,draft,should,genre,no,目前純依戰績倒序
 新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
-逐球文字轉播,game,should,genre,no,
+逐球文字轉播,game,should,genre,yes,你的球隊每場比賽都有逐球紀錄：各節得分、節數切換、只看得分；保留最近兩季
 戰術傾向（節奏、三分、內線、防守）,roster,should,genre,yes,輪替頁設定，引擎的出手選擇、節奏和犯規都會受影響
 傷病系統,players,should,genre,yes,比賽中受傷，缺席 1 到 70 場，傷兵自動不上場，休賽季痊癒
-數據排行,season,should,genre,no,
+數據排行,season,should,genre,yes,得分、籃板、助攻、抄截、火鍋、上場時間與三種命中率，可選歷年球季
 賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,yes,MVP、DPOY、ROY、第六人、總冠軍賽 MVP、年度一二隊
-通知收件匣（傷病、報價、合約）,platform,should,genre,partial,續約、離隊、退休、選秀、冠軍；交易報價與傷病未做
+通知收件匣（傷病、報價、合約）,platform,should,genre,partial,續約、離隊、退休、選秀、冠軍、傷病、交易都有；AI 主動報價還沒有
 交易市場與 AI 主動報價,trade,could,genre,no,
 聯盟歷史與名人堂,history,could,genre,partial,歷屆冠軍與自己球隊戰績；名人堂未做
 2D 俯視比賽回放,game,could,genre,no,

@@ -191,3 +191,55 @@ export function useAwards(leagueId: string | undefined) {
     return { awards, players, seasonStats, teamSeasons };
   }, [leagueId, v]);
 }
+
+export interface LeaderRow {
+  player: Player;
+  teamId: string;
+  gp: number;
+  min: number; pts: number; reb: number; ast: number; stl: number; blk: number;
+  fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
+}
+
+/**
+ * Regular-season totals per player for one season: from box scores for the
+ * current season, from stored season totals for past ones. A player traded
+ * mid-season is one row, listed with his latest team.
+ */
+export function useLeaders(league: League | undefined, season: number | undefined) {
+  const v = useVersion();
+  return useLiveQuery(async () => {
+    if (!league || season == null) return undefined;
+    const seasons = [...new Set((await db.teamSeasons.where("leagueId").equals(league.id).toArray()).map((s) => s.season))].sort((a, b) => b - a);
+    type Line = Omit<LeaderRow, "player" | "teamId" | "gp"> & { playerId: string; teamId: string; gp?: number };
+    let lines: Line[];
+    if (season === league.season) {
+      lines = (await db.playerGameStats.where("[leagueId+season]").equals([league.id, season]).toArray()).filter((l) => !l.isPlayoff);
+    } else {
+      lines = (await db.playerSeasonStats.where("[leagueId+season+isPlayoff]").equals([league.id, season, 0]).toArray());
+    }
+    const byPlayer = new Map<string, Omit<LeaderRow, "player">>();
+    const keys = ["min", "pts", "reb", "ast", "stl", "blk", "fgm", "fga", "tpm", "tpa", "ftm", "fta"] as const;
+    for (const l of lines) {
+      const row = byPlayer.get(l.playerId) ?? { teamId: l.teamId, gp: 0, min: 0, pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0 };
+      row.gp += l.gp ?? 1;
+      row.teamId = l.teamId;
+      for (const k of keys) row[k] += l[k];
+      byPlayer.set(l.playerId, row);
+    }
+    const players = await db.players.bulkGet([...byPlayer.keys()]);
+    const rows: LeaderRow[] = players.filter((p): p is Player => !!p).map((p) => ({ player: p, ...byPlayer.get(p.id)! }));
+    return { rows, seasons };
+  }, [league?.id, league?.season, season, v]);
+}
+
+export function useGame(gameId: string | undefined) {
+  const v = useVersion();
+  return useLiveQuery(async () => {
+    if (!gameId) return null;
+    const game = await db.games.get(gameId);
+    if (!game) return null;
+    const ids = [...new Set((game.playByPlay ?? []).flatMap((e) => [e.playerId, e.otherId]).filter((x): x is string => !!x))];
+    const players = new Map((await db.players.bulkGet(ids)).filter((p): p is Player => !!p).map((p) => [p.id, p]));
+    return { game, players };
+  }, [gameId, v]);
+}

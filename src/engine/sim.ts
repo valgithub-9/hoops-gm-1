@@ -1,4 +1,4 @@
-import type { Position, Ratings } from "../db/schema";
+import type { PlayEvent, Position, Ratings } from "../db/schema";
 import { clamp, makeRng, type Rng } from "./rng";
 import { tr } from "../i18n";
 
@@ -47,7 +47,12 @@ export interface GameResult {
   stats: Map<string, StatLine>;
   injuries: InjuryEvent[];
   fouledOut: string[];
+  /** Only when asked for: recording costs memory and storage. */
+  playByPlay?: PlayEvent[];
 }
+
+/** A play before the clock and score are stamped on it. */
+type RawPlay = Omit<PlayEvent, "q" | "clock" | "scoreHome" | "scoreAway"> & { pts: number; home: boolean };
 
 const QUARTER = 720;
 const REGULATION = QUARTER * 4;
@@ -99,7 +104,9 @@ class Side {
       return {
         p, line: stats.get(p.id)!, secs: 0, energy: 100, fouls: 0, out: false,
         target: Math.min(44, total > 0 ? p.minutes * scale : 240 / Math.max(1, available.length)) * 60,
-        usage: (scoring / 50) ** 3,
+        // Better scorers take more shots. 2.6 gives a realistic leaderboard: one or two
+        // players over 30 points a game, about 25 over 20.
+        usage: (scoring / 50) ** 2.6,
       };
     });
     const starters = all.filter((s) => s.p.starter);
@@ -169,35 +176,46 @@ function pick(rng: Rng, from: PS[], weight: (s: PS) => number, exclude?: PS): PS
   return rng.weighted(pool, weight);
 }
 
-function injure(rng: Rng, s: PS, side: Side, out: InjuryEvent[]) {
+function injure(rng: Rng, s: PS, side: Side, out: InjuryEvent[], log: RawPlay[] | null) {
   const kind = rng.weighted(INJURIES, (i) => i.weight);
   s.out = true;
+  log?.push({ kind: "injury", teamId: side.team.id, playerId: s.p.id, pts: 0, home: side.isHome });
   out.push({ playerId: s.p.id, teamId: side.team.id, gamesOut: rng.int(kind.min, kind.max), type: tr(kind.type, kind.en) });
 }
 
-function possession(rng: Rng, off: Side, def: Side, injuries: InjuryEvent[], fouledOut: string[]): number {
+// Logging never draws random numbers, so a game plays out the same whether it is recorded or not.
+function possession(rng: Rng, off: Side, def: Side, injuries: InjuryEvent[], fouledOut: string[], log: RawPlay[] | null): number {
   const pressure = def.team.tactics.defensePressure;
-  const foul = (s: PS) => {
+  const O = { teamId: off.team.id, home: off.isHome }, D = { teamId: def.team.id, home: def.isHome };
+  const foul = (s: PS, shooting: boolean) => {
     s.line.pf++;
-    if (++s.fouls >= FOUL_LIMIT && !s.out) { s.out = true; fouledOut.push(s.p.id); }
+    log?.push({ kind: "foul", ...D, playerId: s.p.id, shooting, pts: 0 });
+    if (++s.fouls >= FOUL_LIMIT && !s.out) {
+      s.out = true;
+      fouledOut.push(s.p.id);
+      log?.push({ kind: "foulout", ...D, playerId: s.p.id, pts: 0 });
+    }
   };
 
   // Injuries: rare, more likely for tired players and low stamina.
   for (const side of [off, def]) {
     for (const s of side.floor) {
       const p = 0.8e-4 * (1.5 - s.p.ratings.stamina / 100) * (1.6 - s.energy / 100);
-      if (!s.out && rng() < p) injure(rng, s, side, injuries);
+      if (!s.out && rng() < p) injure(rng, s, side, injuries, log);
     }
   }
 
   // Non-shooting defensive foul now and then.
-  if (rng() < 0.09 + pressure * 0.015) foul(pick(rng, def.floor, () => 1));
+  if (rng() < 0.09 + pressure * 0.015) foul(pick(rng, def.floor, () => 1), false);
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const tovP = clamp(0.135 - (off.handling - 50) * 0.0012 + (def.perimD - 50) * 0.0008 + pressure * 0.01, 0.07, 0.22);
     if (rng() < tovP) {
-      pick(rng, off.floor, (s) => 110 - s.p.ratings.handling * fatigue(s)).line.tov++;
-      if (rng() < 0.55) pick(rng, def.floor, (s) => s.p.ratings.perimeterD).line.stl++;
+      const loser = pick(rng, off.floor, (s) => 110 - s.p.ratings.handling * fatigue(s));
+      loser.line.tov++;
+      const stealer = rng() < 0.55 ? pick(rng, def.floor, (s) => s.p.ratings.perimeterD ** 2.5) : null;
+      if (stealer) stealer.line.stl++;
+      log?.push({ kind: "tov", ...O, playerId: loser.p.id, otherId: stealer?.p.id, pts: 0 });
       return 0;
     }
 
@@ -211,13 +229,15 @@ function possession(rng: Rng, off: Side, def: Side, injuries: InjuryEvent[], fou
 
     const foulP = clamp((kind === "rim" ? 0.15 : 0.05) + pressure * 0.012 + (r.athleticism - 50) * 0.001, 0.02, 0.25);
     if (rng() < foulP) {
-      foul(pick(rng, def.floor, (s) => (kind === "rim" ? s.p.ratings.interiorD : s.p.ratings.perimeterD)));
+      foul(pick(rng, def.floor, (s) => (kind === "rim" ? s.p.ratings.interiorD : s.p.ratings.perimeterD)), true);
       const n = kind === "three" ? 3 : 2;
       const ftP = clamp(0.77 + (r.freeThrow - 50) * 0.005 - tired * 0.04, 0.45, 0.95);
       let pts = 0;
       for (let i = 0; i < n; i++) {
         shooter.line.fta++;
-        if (rng() < ftP) { shooter.line.ftm++; pts++; }
+        const made = rng() < ftP;
+        if (made) { shooter.line.ftm++; pts++; }
+        log?.push({ kind: "ft", ...O, playerId: shooter.p.id, made, pts: made ? 1 : 0 });
       }
       shooter.line.pts += pts;
       return pts;
@@ -239,26 +259,35 @@ function possession(rng: Rng, off: Side, def: Side, injuries: InjuryEvent[], fou
       if (kind === "three") shooter.line.tpm++;
       shooter.line.pts += pts;
       const astP = kind === "three" ? 0.82 : kind === "mid" ? 0.55 : 0.5;
-      if (rng() < astP && off.floor.length > 1) pick(rng, off.floor, (s) => s.p.ratings.passing ** 2, shooter).line.ast++;
+      const assister = rng() < astP && off.floor.length > 1 ? pick(rng, off.floor, (s) => s.p.ratings.passing ** 4, shooter) : null;
+      if (assister) assister.line.ast++;
+      log?.push({ kind: "make", ...O, playerId: shooter.p.id, shot: kind, otherId: assister?.p.id, pts });
       return pts;
     }
 
-    if (kind === "rim" && rng() < 0.14) pick(rng, def.floor, (s) => s.p.ratings.interiorD ** 2).line.blk++;
+    // Blocks mostly at the rim, and mostly by the best interior defenders.
+    const blockP = kind === "rim" ? 0.3 : kind === "mid" ? 0.06 : 0.02;
+    const blocker = rng() < blockP ? pick(rng, def.floor, (s) => s.p.ratings.interiorD ** 4) : null;
+    if (blocker) blocker.line.blk++;
+    log?.push({ kind: "miss", ...O, playerId: shooter.p.id, shot: kind, otherId: blocker?.p.id, pts: 0 });
 
     const orebP = clamp(0.24 + (off.reb - def.reb) * 0.004, 0.12, 0.38);
     if (rng() < orebP) {
       const reb = pick(rng, off.floor, (s) => s.p.ratings.rebounding ** 2);
       reb.line.reb++;
       reb.line.oreb++;
+      log?.push({ kind: "reb", ...O, playerId: reb.p.id, offensive: true, pts: 0 });
       continue;
     }
-    pick(rng, def.floor, (s) => s.p.ratings.rebounding ** 2).line.reb++;
+    const dreb = pick(rng, def.floor, (s) => s.p.ratings.rebounding ** 2);
+    dreb.line.reb++;
+    log?.push({ kind: "reb", ...D, playerId: dreb.p.id, offensive: false, pts: 0 });
     return 0;
   }
   return 0;
 }
 
-export function simGame(home: SimTeam, away: SimTeam, seed: string): GameResult {
+export function simGame(home: SimTeam, away: SimTeam, seed: string, opts: { playByPlay?: boolean } = {}): GameResult {
   const rng = makeRng(seed);
   const stats = new Map<string, StatLine>();
   for (const p of [...home.players, ...away.players]) stats.set(p.id, emptyLine());
@@ -266,6 +295,8 @@ export function simGame(home: SimTeam, away: SimTeam, seed: string): GameResult 
   const A = new Side(away, false, stats);
   const injuries: InjuryEvent[] = [];
   const fouledOut: string[] = [];
+  const raw: RawPlay[] | null = opts.playByPlay ? [] : null;
+  const plays: PlayEvent[] = [];
 
   const pace = 100 + (home.tactics.pace + away.tactics.pace) * 2;
   const meanLength = REGULATION / (pace * 2);
@@ -283,7 +314,19 @@ export function simGame(home: SimTeam, away: SimTeam, seed: string): GameResult 
       A.substitute(clock, crunch);
       const d = Math.min(remaining, clamp(rng.normal(meanLength, 4), 5, 24));
       const off = homeBall ? H : A, def = homeBall ? A : H;
-      const pts = possession(rng, off, def, injuries, fouledOut);
+      const pts = possession(rng, off, def, injuries, fouledOut, raw);
+      if (raw) {
+        // Stamp each play with the period, the time left in it and the running score.
+        const ot = clock >= REGULATION;
+        const q = ot ? 5 + Math.floor((clock - REGULATION) / OVERTIME) : Math.floor(clock / QUARTER) + 1;
+        const left = Math.round(ot ? OVERTIME - ((clock - REGULATION) % OVERTIME) : QUARTER - (clock % QUARTER));
+        let h = scoreHome, a = scoreAway;
+        for (const { pts: p, home: isHome, ...e } of raw) {
+          if (isHome) h += p; else a += p;
+          plays.push({ ...e, q, clock: left, scoreHome: h, scoreAway: a });
+        }
+        raw.length = 0;
+      }
       if (homeBall) scoreHome += pts; else scoreAway += pts;
       H.tick(d);
       A.tick(d);
@@ -295,8 +338,20 @@ export function simGame(home: SimTeam, away: SimTeam, seed: string): GameResult 
     periodEnd += OVERTIME;
   }
 
-  for (const side of [H, A]) for (const s of [...side.floor, ...side.bench]) s.line.min = Math.round(s.secs / 60);
-  return { scoreHome, scoreAway, overtimes, stats, injuries, fouledOut };
+  // Whole minutes that still add up to the game length: round down, then hand the
+  // leftover minutes to the players with the largest remainders.
+  for (const side of [H, A]) {
+    const all = [...side.floor, ...side.bench];
+    const total = Math.round(all.reduce((n, s) => n + s.secs, 0) / 60);
+    for (const s of all) s.line.min = Math.floor(s.secs / 60);
+    let left = total - all.reduce((n, s) => n + s.line.min, 0);
+    for (const s of [...all].sort((x, y) => (y.secs % 60) - (x.secs % 60))) {
+      if (left <= 0) break;
+      s.line.min++;
+      left--;
+    }
+  }
+  return { scoreHome, scoreAway, overtimes, stats, injuries, fouledOut, playByPlay: opts.playByPlay ? plays : undefined };
 }
 
 /** Default rotation: best five start, minutes taper down the bench, total 240. */

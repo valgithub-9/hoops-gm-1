@@ -148,9 +148,10 @@ export async function advancePlayoffs(
         scoreHome: null, scoreAway: null, playByPlay: null,
       };
       const home = simTeams.get(homeId)!, away = simTeams.get(awayId)!;
-      const r = simGame(home, away, g.seed);
+      const r = simGame(home, away, g.seed, { playByPlay: [homeId, awayId].includes(league.userTeamId) });
       g.scoreHome = r.scoreHome;
       g.scoreAway = r.scoreAway;
+      g.playByPlay = r.playByPlay ?? null;
       finished.push(g);
       lines.push(...statRows(league.id, league.season, g, home, away, r));
       applyInjuries([home, away], playerById, r, changed);

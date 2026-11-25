@@ -18,14 +18,14 @@ import { HistoryPage } from "./pages/league/HistoryPage";
 import { TradePage } from "./pages/league/TradePage";
 import { FreeAgentsPage } from "./pages/league/FreeAgentsPage";
 import { FinancesPage } from "./pages/league/FinancesPage";
+import { GamePage } from "./pages/league/GamePage";
+import { LeadersPage } from "./pages/league/LeadersPage";
 import { tr } from "./i18n";
 
 const LeagueIndex = () => <Navigate to={`/l/${useParams().leagueId}/team`} replace />;
 
 // Every screen from replica/recon.md has a route; unbuilt ones are labelled stubs.
 const soon = (): [string, string, string, string][] => [
-  ["game/:gameId", tr("比賽", "Game"), "S08", tr("逐球文字轉播。", "Play-by-play.")],
-  ["leaders", tr("數據排行", "League Leaders"), "S11", tr("得分、籃板、助攻等聯盟排行。", "League leaders in points, rebounds, assists and more.")],
   ["trading-block", tr("交易市場", "Trading Block"), "S13", tr("掛牌球員、接收報價。", "List players and receive offers.")],
 ];
 
@@ -51,6 +51,8 @@ export function App() {
       <Route path="/l/:leagueId/trade" element={<TradePage />} />
       <Route path="/l/:leagueId/free-agents" element={<FreeAgentsPage />} />
       <Route path="/l/:leagueId/finances" element={<FinancesPage />} />
+      <Route path="/l/:leagueId/game/:gameId" element={<GamePage />} />
+      <Route path="/l/:leagueId/leaders" element={<LeadersPage />} />
       {soon().map(([path, title, id, about]) => (
         <Route key={path} path={`/l/:leagueId/${path}`} element={<ComingSoon title={title} screen={id} about={about} />} />
       ))}

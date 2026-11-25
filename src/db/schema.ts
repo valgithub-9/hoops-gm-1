@@ -185,14 +185,24 @@ export interface Game {
   playByPlay: PlayEvent[] | null; // dropped after keepPlayByPlaySeasons; replay from seed
 }
 
+/**
+ * One play. Stored as data, not text: the game screen writes the sentence in
+ * the player's language when it is shown.
+ */
 export interface PlayEvent {
   q: number; // quarter, 5+ = overtime
   clock: number; // seconds left in the quarter
   teamId: Id;
   playerId: Id | null;
-  kind: string; // "made2", "miss3", "rebound", "turnover", ...
+  kind: "make" | "miss" | "ft" | "tov" | "reb" | "foul" | "foulout" | "injury";
   scoreHome: number;
   scoreAway: number;
+  shot?: "rim" | "mid" | "three";
+  made?: boolean; // free throws
+  offensive?: boolean; // rebounds
+  shooting?: boolean; // fouls
+  /** Assist on a make, block on a miss, steal on a turnover. */
+  otherId?: Id;
 }
 
 export interface PlayerGameStat {
