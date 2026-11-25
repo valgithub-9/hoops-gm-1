@@ -1,0 +1,41 @@
+feature,area,priority,original,clone,notes
+開新聯盟（隊數、接手球隊、難度、種子）,onboarding,must,genre,yes,難度決定 AI 交易要求的價值差（輕鬆 0.95、一般 1.05、困難 1.15）
+程序產生原創球隊（虛構城市、隊名、隊色）,league,must,genre,yes,
+程序產生原創球員（姓名、年齡、位置、能力、潛力）,players,must,genre,yes,
+例行賽賽程產生,season,must,genre,yes,循環賽制，每隊每天一場
+推進賽季（一天、一週、到下個階段）,season,must,genre,yes,一天、一週、到交易截止日、到階段結束；交易截止日與主力重傷會暫停
+比賽模擬引擎（能力、輪替影響結果，可用 seed 重現）,game,must,genre,yes,v2：追蹤場上五人、換人、體力、犯規麻煩與六犯畢業、關鍵時刻留最強五人；可重現
+Box score 與球員單場數據,game,must,genre,yes,
+聯盟排名,season,must,genre,yes,
+球隊名單（能力、合約、傷病）,roster,must,genre,yes,
+球員資料頁（能力、數據、合約）,roster,must,genre,yes,能力（含與去年比較）、球探潛力區間、生涯數據、合約、獎項
+輪替與上場時間設定,roster,must,genre,yes,先發勾選、分鐘數（總和 240 才能存）、自動排；拖放未做
+季後賽與冠軍,season,must,genre,yes,每區前 N 名、七戰四勝、種子主場
+選秀（新秀產生、順位、選人、AI 選秀）,draft,must,genre,yes,依戰績倒序；樂透另列
+球員成長、老化與退休（跨年度）,progression,must,genre,yes,與生成年齡曲線一致；8 季測試聯盟總評不漂移
+存檔（瀏覽器本機）與匯出匯入,platform,must,genre,yes,匯出 JSON、匯入驗證、重複與錯誤檔案拒絕；舊版自動遷移
+桌機可玩、手機寬度可用,platform,must,genre,yes,390px 與 1440px 皆無橫向捲動
+交易（球員與選秀權，AI 評估）,trade,should,genre,yes,價值模型考慮年齡、潛力、合約、球隊策略，邊際遞減；會還價；薪資配對與截止日
+薪資上限、合約與財務頁,finances,should,genre,yes,五季薪資表、薪資空間、奢侈稅線、已釋出薪資；超過上限只能簽底薪
+自由市場簽約（出價、競價）,free agency,should,genre,partial,出價、續約、釋出都已完成；還沒有其他球隊同時競價
+選秀樂透,draft,should,genre,no,目前純依戰績倒序
+新秀球探報告（潛力只顯示估計）,draft,should,genre,partial,潛力只顯示區間；文字球探報告未做
+逐球文字轉播,game,should,genre,yes,你的球隊每場比賽都有逐球紀錄：各節得分、節數切換、只看得分；保留最近兩季
+戰術傾向（節奏、三分、內線、防守）,roster,should,genre,yes,輪替頁設定，引擎的出手選擇、節奏和犯規都會受影響
+傷病系統,players,should,genre,yes,比賽中受傷，缺席 1 到 70 場，傷兵自動不上場，休賽季痊癒
+數據排行,season,should,genre,yes,得分、籃板、助攻、抄截、火鍋、上場時間與三種命中率，可選歷年球季
+賽季獎項（MVP、新人王、最佳陣容）,season,should,genre,yes,MVP、DPOY、ROY、第六人、總冠軍賽 MVP、年度一二隊
+通知收件匣（傷病、報價、合約）,platform,should,genre,partial,續約、離隊、退休、選秀、冠軍、傷病、交易都有；AI 主動報價還沒有
+交易市場與 AI 主動報價,trade,could,genre,no,
+聯盟歷史與名人堂,history,could,genre,partial,歷屆冠軍與自己球隊戰績；名人堂未做
+2D 俯視比賽回放,game,could,genre,no,
+奢侈稅與球隊老闆滿意度,finances,could,genre,no,奢侈稅線已顯示，並限制 AI 續約；還不會實際扣稅
+帳號登入與跨裝置同步,platform,could,genre,no,
+聯盟編輯器（自訂球員、球隊）,league,could,genre,no,
+PWA 離線遊玩,platform,could,genre,no,
+真實 NBA 球隊與球員,licensing,could,yes,skip,NBA／NBPA 授權，無法取得
+真實球員肖像與數據,licensing,could,yes,skip,肖像權與授權
+2K 的模式名稱、介面與美術,brand,could,yes,skip,屬於 2K 的智慧財產
+真實聯盟勞資協議全文規則,rules,could,yes,skip,只取通用概念並自訂簡化版
+3D 即時操控比賽,game,could,yes,skip,主機 AAA 規模，改用模擬
+線上多人聯盟,multiplayer,could,yes,skip,需伺服器同步與防作弊，非第一版
